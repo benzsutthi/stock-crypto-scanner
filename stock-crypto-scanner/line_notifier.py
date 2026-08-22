@@ -22,52 +22,50 @@ def format_report(scan_results):
     total_found = len(scan_results['crypto']) + len(scan_results['us_stocks']) + len(scan_results['thai_stocks'])
     
     msg_lines = []
-    msg_lines.append("📊 【 รายงานสแกนหุ้น & คริปโตเด่นประจำวัน 】")
-    msg_lines.append(f"🕒 อัปเดต: {now_str}")
+    msg_lines.append("📊 【 สรุปสัญญาณตลาดเด่นประจำวัน Top 3 】")
     if total_scanned > 0:
-        msg_lines.append(f"🔍 สแกนตลาดครอบคลุม: {total_scanned} สินทรัพย์ (Binance + SET100 + US)")
-    msg_lines.append(f"🎯 คัดเลือก Top Picks สัญญาณแกร่ง: {total_found} ตัว\n")
+        msg_lines.append(f"🕒 {now_str} (สแกน {total_scanned} สินทรัพย์ทั่วโลก)")
+    else:
+        msg_lines.append(f"🕒 {now_str}")
+    msg_lines.append("")
     
     # หมวดคริปโต
     if scan_results['crypto']:
-        msg_lines.append("🪙 ━━ 【 TOP CRYPTO PICKS 】 ━━")
-        for i, item in enumerate(scan_results['crypto'], 1):
+        msg_lines.append("🪙 【 CRYPTO TOP 3 】")
+        for i, item in enumerate(scan_results['crypto'][:3], 1):
             sign_str = "+" if item['change_pct'] >= 0 else ""
             formatted_price = format_price(item['price'], "$")
-            msg_lines.append(f"#{i} {item['display_name']}: {formatted_price} ({sign_str}{item['change_pct']}%)")
-            msg_lines.append(f"   RSI: {item['rsi']} | Vol: {item['vol_ratio']}x")
-            for sig in item['signals']:
-                msg_lines.append(f"   ↳ {sig}")
+            signals_str = " + ".join([s.split(" (")[0] for s in item['signals']])
+            msg_lines.append(f"{i}. {item['display_name']}: {formatted_price} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
+            msg_lines.append(f"   ↳ {signals_str}")
         msg_lines.append("")
 
     # หมวดหุ้นสหรัฐฯ
     if scan_results['us_stocks']:
-        msg_lines.append("🇺🇸 ━━ 【 TOP US STOCKS PICKS 】 ━━")
-        for i, item in enumerate(scan_results['us_stocks'], 1):
+        msg_lines.append("🇺🇸 【 US STOCKS TOP 3 】")
+        for i, item in enumerate(scan_results['us_stocks'][:3], 1):
             sign_str = "+" if item['change_pct'] >= 0 else ""
             formatted_price = format_price(item['price'], "$")
-            msg_lines.append(f"#{i} {item['display_name']}: {formatted_price} ({sign_str}{item['change_pct']}%)")
-            msg_lines.append(f"   RSI: {item['rsi']} | Vol: {item['vol_ratio']}x")
-            for sig in item['signals']:
-                msg_lines.append(f"   ↳ {sig}")
+            signals_str = " + ".join([s.split(" (")[0] for s in item['signals']])
+            msg_lines.append(f"{i}. {item['display_name']}: {formatted_price} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
+            msg_lines.append(f"   ↳ {signals_str}")
         msg_lines.append("")
 
     # หมวดหุ้นไทย
     if scan_results['thai_stocks']:
-        msg_lines.append("🇹🇭 ━━ 【 TOP THAI SET PICKS 】 ━━")
-        for i, item in enumerate(scan_results['thai_stocks'], 1):
+        msg_lines.append("🇹🇭 【 THAI SET TOP 3 】")
+        for i, item in enumerate(scan_results['thai_stocks'][:3], 1):
             sign_str = "+" if item['change_pct'] >= 0 else ""
             formatted_price = format_price(item['price'], "฿")
-            msg_lines.append(f"#{i} {item['display_name']}: {formatted_price} ({sign_str}{item['change_pct']}%)")
-            msg_lines.append(f"   RSI: {item['rsi']} | Vol: {item['vol_ratio']}x")
-            for sig in item['signals']:
-                msg_lines.append(f"   ↳ {sig}")
+            signals_str = " + ".join([s.split(" (")[0] for s in item['signals']])
+            msg_lines.append(f"{i}. {item['display_name']}: {formatted_price} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
+            msg_lines.append(f"   ↳ {signals_str}")
         msg_lines.append("")
 
     if total_found == 0:
         msg_lines.append("😴 วันนี้ตลาดค่อนข้างนิ่ง ยังไม่พบสินทรัพย์ที่เข้าเกณฑ์เทคนิคอลสำคัญ")
     else:
-        msg_lines.append("⚠️ ข้อมูลนี้เป็นการคัดกรองทางเทคนิคอลเบื้องต้น ไม่ใช่คำแนะนำทางการเงิน โปรดตั้ง Stop Loss เสมอ")
+        msg_lines.append("⚠️ ข้อมูลคัดกรองทางเทคนิคอลเบื้องต้น โปรดตั้ง Stop Loss เสมอ")
 
     return "\n".join(msg_lines)
 

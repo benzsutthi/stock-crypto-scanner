@@ -196,10 +196,7 @@ def scan_symbol_list_parallel(symbols: list, asset_type: str, max_workers: int =
     def worker_func(s):
         if asset_type == "Crypto":
             clean_name = s.replace("-USD", "").replace("USDT", "")
-            res = analyze_binance_crypto(clean_name)
-            if res:
-                return res
-            return analyze_ticker(s, asset_type="Crypto")
+            return analyze_binance_crypto(clean_name)
         else:
             return analyze_ticker(s, asset_type=asset_type)
 

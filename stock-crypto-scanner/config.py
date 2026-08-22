@@ -7,7 +7,7 @@ load_dotenv()
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN") or "F1+rOyHfN+u/c6jLTBvlMlLhFYkIaa8Uit7iSeriOYEl39/K7QHulG4Ya6IWqzgzeNg0zcNhQ4LzeU3GAboJbTmn0c39Q/E+YltCsD3H7bF/Ae4YZ4tKvQ5ZkmCYedcQac2XEe/3Zlq+DVYyyPylQgdB04t89/1O/w1cDnyilFU="
 
 # การตั้งค่าการสแกน
-MAX_PICKS_PER_CATEGORY = 6       # จำนวนตัวเลือกเด่นที่สุดที่จะส่งเข้า LINE ต่อหมวด
+MAX_PICKS_PER_CATEGORY = 3       # จำนวนตัวเลือกเด่นที่สุดที่จะส่งเข้า LINE ต่อหมวด (Top 3)
 USE_DYNAMIC_BINANCE = True       # ดึงเหรียญคริปโตแบบ Dynamic Real-time จาก Binance
 BINANCE_MIN_VOL_USD = 8000000    # กรองเฉพาะเหรียญที่มี Volume ซื้อขาย 24 ชม. เกิน 8 ล้านดอลลาร์
 BINANCE_TOP_LIMIT = 60           # จำนวนเหรียญคริปโตสูงสุดที่จะนำมาสแกน
