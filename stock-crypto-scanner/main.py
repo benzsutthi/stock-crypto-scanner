@@ -10,17 +10,28 @@ if sys.platform.startswith('win'):
     except Exception:
         pass
 
-from config import LINE_CHANNEL_ACCESS_TOKEN, US_STOCKS, THAI_STOCKS, CRYPTO_LIST
+from config import (
+    LINE_CHANNEL_ACCESS_TOKEN, US_STOCKS, THAI_STOCKS, CRYPTO_LIST,
+    MAX_PICKS_PER_CATEGORY, USE_DYNAMIC_BINANCE, BINANCE_MIN_VOL_USD, BINANCE_TOP_LIMIT
+)
 from scanner import scan_all
 from line_notifier import format_report, send_line_broadcast
 
 def main():
     print("=" * 50)
-    print("🚀 เริ่มต้นระบบสแกนหุ้นและคริปโตประจำวัน")
+    print("🚀 เริ่มต้นระบบสแกนหุ้นและคริปโตประจำวัน (Dynamic All-Market)")
     print("=" * 50)
     
-    # 1. สแกนสินทรัพย์ทั้งหมด
-    results = scan_all(US_STOCKS, THAI_STOCKS, CRYPTO_LIST)
+    # 1. สแกนสินทรัพย์ทั้งหมดแบบ Dynamic + Concurrency
+    results = scan_all(
+        us_stocks=US_STOCKS,
+        thai_stocks=THAI_STOCKS,
+        crypto_list=CRYPTO_LIST,
+        use_dynamic_binance=USE_DYNAMIC_BINANCE,
+        min_vol_usd=BINANCE_MIN_VOL_USD,
+        top_crypto_limit=BINANCE_TOP_LIMIT,
+        max_picks=MAX_PICKS_PER_CATEGORY
+    )
     
     # 2. จัดรูปแบบข้อความ
     report_text = format_report(results)
