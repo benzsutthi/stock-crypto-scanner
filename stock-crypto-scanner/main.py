@@ -2,7 +2,6 @@
 import sys
 import os
 
-# บังคับให้ Console ของ Windows รองรับภาษาไทยและ Emoji (UTF-8)
 if sys.platform.startswith('win'):
     try:
         sys.stdout.reconfigure(encoding='utf-8')
@@ -15,14 +14,13 @@ from config import (
     MAX_PICKS_PER_CATEGORY, USE_DYNAMIC_BINANCE, BINANCE_MIN_VOL_USD, BINANCE_TOP_LIMIT
 )
 from scanner import scan_all
-from line_notifier import format_report, send_line_broadcast
+from line_notifier import format_text_report, send_line_broadcast
 
 def main():
     print("=" * 50)
     print("🚀 เริ่มต้นระบบสแกนหุ้นและคริปโตประจำวัน (Dynamic All-Market)")
     print("=" * 50)
     
-    # 1. สแกนสินทรัพย์ทั้งหมดแบบ Dynamic + Concurrency
     results = scan_all(
         us_stocks=US_STOCKS,
         thai_stocks=THAI_STOCKS,
@@ -33,22 +31,19 @@ def main():
         max_picks=MAX_PICKS_PER_CATEGORY
     )
     
-    # 2. จัดรูปแบบข้อความ
-    report_text = format_report(results)
-    
+    report_text = format_text_report(results)
     print("\n" + "=" * 50)
-    print("📝 ตัวอย่างข้อความที่จะส่ง:")
+    print("📝 สรุปรายงานตลาด:")
     print("=" * 50)
     print(report_text)
     print("=" * 50)
     
-    # 3. ส่งเข้า LINE
     if not LINE_CHANNEL_ACCESS_TOKEN:
-        print("❌ ไม่พบ LINE_CHANNEL_ACCESS_TOKEN กรุณาตรวจสอบ config.py")
+        print("❌ ไม่พบ LINE_CHANNEL_ACCESS_TOKEN")
         return
         
-    print("\n📲 กำลังส่งข้อความไปยัง LINE...")
-    send_line_broadcast(report_text, LINE_CHANNEL_ACCESS_TOKEN)
+    print("\n📲 กำลังส่งข้อความไปยัง LINE (Flex Message)...")
+    send_line_broadcast(results, LINE_CHANNEL_ACCESS_TOKEN)
 
 if __name__ == "__main__":
     main()
