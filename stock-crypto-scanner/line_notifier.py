@@ -1,7 +1,15 @@
-# line_notifier.py
-import requests
-import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# กำหนด Timezone เวลาประเทศไทย (UTC+7)
+try:
+    import zoneinfo
+    THAI_TZ = zoneinfo.ZoneInfo("Asia/Bangkok")
+except Exception:
+    THAI_TZ = timezone(timedelta(hours=7))
+
+def get_thai_now() -> datetime:
+    """ดึงเวลาปัจจุบันใน Timezone ประเทศไทย (UTC+7) เสมอ แม้รันบน GitHub Actions/Server UTC"""
+    return datetime.now(THAI_TZ)
 
 def format_price(price: float, currency: str = "$") -> str:
     if price >= 1000:
@@ -208,7 +216,7 @@ def build_category_bubble(title: str, subtitle: str, header_color: str, items: l
     }
 
 def create_flex_message(scan_results: dict) -> dict:
-    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now_str = get_thai_now().strftime("%d/%m/%Y %H:%M น.")
     bubbles = [
         build_category_bubble(
             title="🪙 CRYPTO TOP PICKS",
@@ -240,7 +248,7 @@ def create_flex_message(scan_results: dict) -> dict:
     }
 
 def format_text_report(scan_results):
-    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now_str = get_thai_now().strftime("%d/%m/%Y %H:%M น.")
     total_found = len(scan_results['crypto']) + len(scan_results['us_stocks']) + len(scan_results['thai_stocks'])
     
     msg_lines = [
