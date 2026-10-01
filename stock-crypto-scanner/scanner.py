@@ -75,7 +75,7 @@ def analyze_binance_crypto(coin_name: str):
     except Exception:
         return None
 
-def evaluate_dataframe(df: pd.DataFrame, symbol: str, display_name: str, asset_type: str):
+def evaluate_dataframe(df: pd.DataFrame, symbol: str, display_name: str, asset_type: str, include_no_signal: bool = False):
     """คำนวณ Indicator ทางเทคนิคและตัดเกรดสัญญาณ"""
     try:
         close_series = df['Close']
@@ -149,7 +149,7 @@ def evaluate_dataframe(df: pd.DataFrame, symbol: str, display_name: str, asset_t
             score += 10
         score += min(int(vol_ratio * 10), 30)
 
-        if not signals:
+        if not signals and not include_no_signal:
             return None
 
         return {
@@ -160,13 +160,16 @@ def evaluate_dataframe(df: pd.DataFrame, symbol: str, display_name: str, asset_t
             "change_pct": round(change_pct, 2),
             "rsi": round(rsi, 1),
             "vol_ratio": round(vol_ratio, 2),
+            "ema20": round(ema20, 4) if ema20 else None,
+            "ema50": round(ema50, 4) if ema50 else None,
+            "high20": round(float(prev['High_20']), 4) if pd.notna(prev['High_20']) else None,
             "signals": signals,
             "score": score
         }
     except Exception:
         return None
         
-def analyze_ticker(symbol: str, asset_type: str = "US"):
+def analyze_ticker(symbol: str, asset_type: str = "US", include_no_signal: bool = False):
     """
     ดึงข้อมูลหุ้นผ่าน yfinance และคำนวณ Indicator
     """
@@ -189,7 +192,7 @@ def analyze_ticker(symbol: str, asset_type: str = "US"):
             return None
 
         display_name = symbol.replace(".BK", " (SET)").replace("-USD", "")
-        return evaluate_dataframe(df, symbol=symbol, display_name=display_name, asset_type=asset_type)
+        return evaluate_dataframe(df, symbol=symbol, display_name=display_name, asset_type=asset_type, include_no_signal=include_no_signal)
     except Exception:
         return None
 
