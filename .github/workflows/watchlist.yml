@@ -1,0 +1,35 @@
+name: Watchlist new-signal LINE alerts
+on:
+  schedule:
+    - cron: '30 1 * * 2-6'
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: watchlist-alerts
+  cancel-in-progress: false
+jobs:
+  alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/cache/restore@v4
+        with:
+          path: .alert-state
+          key: watchlist-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: watchlist-state-
+      - run: python -m pip install -r stock-crypto-scanner/requirements.txt
+      - name: Send only new confirmed signals
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          WATCHLIST_JSON: ${{ secrets.WATCHLIST_JSON }}
+          ALERT_MARKET: ${{ github.event.schedule == '0 11 * * 1-5' && 'Thai' || github.event.schedule == '30 1 * * 2-6' && 'US' || 'All' }}
+        run: python stock-crypto-scanner/watchlist_alerts.py
+      - uses: actions/cache/save@v4
+        with:
+          path: .alert-state
+          key: watchlist-state-${{ github.run_id }}-${{ github.run_attempt }}

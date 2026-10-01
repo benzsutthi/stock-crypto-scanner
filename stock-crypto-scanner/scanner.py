@@ -4,8 +4,9 @@ import json
 import concurrent.futures
 import yfinance as yf
 import pandas as pd
-import ta
 from datetime import datetime
+from technicals import analyze
+from zoneinfo import ZoneInfo
 
 # รายชื่อเหรียญ Stablecoins และเหรียญ Leveraged ที่ต้องตัดออก
 EXCLUDE_CRYPTO = {
@@ -59,7 +60,7 @@ def analyze_binance_crypto(coin_name: str):
     """
     try:
         pair = f"{coin_name}USDT"
-        url = f"https://api.binance.com/api/v3/klines?symbol={pair}&interval=1d&limit=100"
+        url = f"https://api.binance.com/api/v3/klines?symbol={pair}&interval=1d&limit=250"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             raw = json.loads(resp.read().decode('utf-8'))
@@ -67,6 +68,7 @@ def analyze_binance_crypto(coin_name: str):
         if not raw or len(raw) < 50:
             return None
             
+        raw = [bar for bar in raw if int(bar[6]) < datetime.now().timestamp() * 1000]
         df = pd.DataFrame(raw, columns=['open_time', 'Open', 'High', 'Low', 'Close', 'Volume', 'close_time', 'qav', 'num_trades', 'taker_base', 'taker_quote', 'ignore'])
         for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -78,93 +80,26 @@ def analyze_binance_crypto(coin_name: str):
 def evaluate_dataframe(df: pd.DataFrame, symbol: str, display_name: str, asset_type: str, include_no_signal: bool = False):
     """คำนวณ Indicator ทางเทคนิคและตัดเกรดสัญญาณ"""
     try:
-        close_series = df['Close']
-        high_series = df['High']
-        vol_series = df['Volume']
-
-        df['EMA20'] = ta.trend.ema_indicator(close_series, window=20)
-        df['EMA50'] = ta.trend.ema_indicator(close_series, window=50)
-        if len(df) >= 200:
-            df['EMA200'] = ta.trend.ema_indicator(close_series, window=200)
-        else:
-            df['EMA200'] = None
-
-        df['RSI'] = ta.momentum.rsi(close_series, window=14)
-        
-        macd = ta.trend.MACD(close_series)
-        df['MACD'] = macd.macd()
-        df['MACD_Signal'] = macd.macd_signal()
-        
-        df['Vol_SMA20'] = ta.trend.sma_indicator(vol_series, window=20)
-        df['High_20'] = high_series.rolling(window=20).max()
-
-        curr = df.iloc[-1]
-        prev = df.iloc[-2]
-
-        curr_close = float(curr['Close'])
-        prev_close = float(prev['Close'])
-        change_pct = ((curr_close - prev_close) / prev_close) * 100
-        
-        curr_vol = float(curr['Volume']) if curr['Volume'] > 0 else 0
-        vol_sma20 = float(curr['Vol_SMA20']) if pd.notna(curr['Vol_SMA20']) and curr['Vol_SMA20'] > 0 else 1
-        vol_ratio = curr_vol / vol_sma20 if vol_sma20 > 0 else 1.0
-
-        rsi = float(curr['RSI']) if pd.notna(curr['RSI']) else 50.0
-        ema20 = float(curr['EMA20']) if pd.notna(curr['EMA20']) else 0
-        ema50 = float(curr['EMA50']) if pd.notna(curr['EMA50']) else 0
-        ema200 = float(curr['EMA200']) if pd.notna(curr['EMA200']) else None
-        
-        signals = []
-        score = 0
-
-        # 1. Breakout 20 วัน: เทียบราคาปัจจุบันกับ High 20 วันของแท่งก่อนหน้า
-        is_breakout = pd.notna(prev['High_20']) and curr_close > float(prev['High_20'])
-        is_uptrend = (curr_close > ema20 > ema50)
-        if is_breakout:
-            signals.append("🔥 20-Day Breakout (ราคาทะลุจุดสูงสุด 20 วัน)")
-            score += 35
-        if is_uptrend and vol_ratio >= 1.25 and 48 <= rsi < 70:
-            signals.append("🚀 Strong Uptrend (ราคายืนเหนือ EMA20/50 พร้อมโวลุ่ม)")
-            score += 20
-        if vol_ratio >= 1.5:
-            signals.append(f"⚡ Volume Spike ({vol_ratio:.1f}x ค่าเฉลี่ย 20 วัน)")
-            score += 20
-
-        # 2. เงื่อนไข MACD Bullish Crossover
-        if prev['MACD'] <= prev['MACD_Signal'] and curr['MACD'] > curr['MACD_Signal'] and curr_close > ema20:
-            signals.append("🎯 MACD Golden Cross (สัญญาณกลับตัวขึ้นรอบใหม่)")
-            score += 25
-
-        # 3. RSI momentum และโซนสุดโต่ง (RSI สูงเป็นคำเตือน ไม่ใช่สัญญาณซื้อ)
-        if 55 <= rsi < 70:
-            signals.append(f"📈 RSI Momentum ({rsi:.1f}: โมเมนตัมเชิงบวก)")
-            score += 10
-        elif rsi >= 70:
-            signals.append(f"⚠️ RSI สูง ({rsi:.1f}: เสี่ยงซื้อมากเกินไป)")
-        elif (float(prev['RSI']) < 32 and rsi >= 32) or (rsi < 30):
-            signals.append("💎 RSI Oversold (RSI ต่ำกว่า 30/เริ่มฟื้นจากเขตขายมาก)")
-            score += 20
-
-        if ema200 and curr_close > ema200:
-            score += 10
-        score += min(int(vol_ratio * 10), 30)
-
-        if not signals and not include_no_signal:
+        df = df.dropna(subset=['Close', 'High', 'Low', 'Volume'])
+        if len(df) < 50:
+            return None
+        result = analyze(df)
+        if not result['signals'] and not include_no_signal:
             return None
 
         return {
             "symbol": symbol,
             "display_name": display_name,
             "asset_type": asset_type,
-            "price": curr_close,
-            "change_pct": round(change_pct, 2),
-            "rsi": round(rsi, 1),
-            "vol_ratio": round(vol_ratio, 2),
-            "ema20": round(ema20, 4) if ema20 else None,
-            "ema50": round(ema50, 4) if ema50 else None,
-            "high20": round(float(prev['High_20']), 4) if pd.notna(prev['High_20']) else None,
-            "signals": signals,
-            "score": score
+            "price": result['price'],
+            "change_pct": result['change'],
+            "rsi": result['rsi'],
+            "vol_ratio": result['volumeRatio'],
+            "ema20": result['ema20'],
+            "ema50": result['ema50'],
+            "high20": result['high20'],
+            "signals": [s['label'] for s in result['signals']],
+            "score": result['score']
         }
     except Exception:
         return None
@@ -180,6 +115,10 @@ def analyze_ticker(symbol: str, asset_type: str = "US", include_no_signal: bool 
         
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
+        now = datetime.now(ZoneInfo('Asia/Bangkok' if symbol.endswith('.BK') else 'America/New_York'))
+        cutoff = (17, 15) if symbol.endswith('.BK') else (16, 30)
+        if (now.hour, now.minute) < cutoff:
+            df = df.loc[[stamp.date() < now.date() for stamp in df.index]]
             
         required_cols = ['Close', 'High', 'Low', 'Volume']
         for col in required_cols:

@@ -8,7 +8,8 @@ import pandas as pd
 import yfinance as yf
 
 from config import THAI_STOCKS, US_STOCKS
-from scanner import evaluate_dataframe
+from technicals import analyze
+from zoneinfo import ZoneInfo
 
 
 def extract_ticker_frame(downloaded: pd.DataFrame, symbol: str) -> pd.DataFrame:
@@ -20,24 +21,6 @@ def extract_ticker_frame(downloaded: pd.DataFrame, symbol: str) -> pd.DataFrame:
                 return downloaded.xs(symbol, axis=1, level=level, drop_level=True)
         return pd.DataFrame()
     return downloaded
-
-
-def serialize_signals(labels: list[str]) -> list[dict]:
-    signals = []
-    mappings = (
-        ("20-Day Breakout", "breakout", "20D Breakout"),
-        ("Volume Spike", "volume", "Volume Spike"),
-        ("MACD Golden Cross", "macd", "MACD Golden Cross"),
-        ("RSI Momentum", "rsi-momentum", "RSI โมเมนตัม"),
-        ("RSI สูง", "rsi-high", "RSI สูง · ระวังซื้อมากเกินไป"),
-        ("RSI Oversold", "rsi-low", "RSI Oversold"),
-        ("Strong Uptrend", "trend", "แนวโน้มขาขึ้น"),
-    )
-    for label in labels:
-        mapping = next((item for item in mappings if item[0] in label), None)
-        if mapping:
-            signals.append({"type": mapping[1], "label": mapping[2], "description": label})
-    return signals
 
 
 def build_snapshot(output: Path) -> dict:
@@ -68,19 +51,19 @@ def build_snapshot(output: Path) -> dict:
         frame = frame.copy()
         for column in required:
             frame[column] = pd.to_numeric(frame[column], errors="coerce")
-        frame = frame.dropna(subset=["Close"])
+        frame = frame.dropna(subset=required)
+        market = "Thai" if symbol in thai_set else "US"
+        now = datetime.now(ZoneInfo("Asia/Bangkok" if market == "Thai" else "America/New_York"))
+        # Exclude today's bar until the exchange close plus a publication buffer.
+        close_hour, close_minute = (17, 15) if market == "Thai" else (16, 30)
+        if (now.hour, now.minute) < (close_hour, close_minute):
+            frame = frame.loc[[stamp.date() < now.date() for stamp in frame.index]]
         if len(frame) < 50:
             failed.append(symbol)
             continue
 
         market = "Thai" if symbol in thai_set else "US"
-        result = evaluate_dataframe(
-            frame,
-            symbol=symbol,
-            display_name=symbol.removesuffix(".BK"),
-            asset_type="Thai Stock" if market == "Thai" else "US Stock",
-            include_no_signal=True,
-        )
+        result = analyze(frame)
         if not result:
             failed.append(symbol)
             continue
@@ -89,18 +72,11 @@ def build_snapshot(output: Path) -> dict:
             "symbol": symbol.removesuffix(".BK"),
             "name": symbol.removesuffix(".BK"),
             "currency": "THB" if market == "Thai" else "USD",
-            "price": result["price"],
-            "change": result["change_pct"],
-            "rsi": result["rsi"],
-            "volumeRatio": result["vol_ratio"],
-            "ema20": result["ema20"],
-            "ema50": result["ema50"],
-            "high20": result["high20"],
-            "score": result["score"],
-            "signals": serialize_signals(result["signals"]),
+            **result,
+            "priceDate": frame.index[-1].date().isoformat(),
         })
 
-    if not assets:
+    if not assets or not all(any(asset['market'] == market for asset in assets) for market in ('US', 'Thai')):
         raise RuntimeError("No stock data was returned by Yahoo Finance; refusing to publish an empty snapshot.")
 
     snapshot = {
@@ -112,7 +88,7 @@ def build_snapshot(output: Path) -> dict:
         "failedSymbols": failed,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    output.write_text(json.dumps(snapshot, ensure_ascii=False, separators=(",", ":"), allow_nan=False), encoding="utf-8")
     print(f"Saved {len(assets)} stocks ({snapshot['markets']['US']} US, {snapshot['markets']['Thai']} Thai); {len(failed)} unavailable.")
     if failed:
         print("Unavailable symbols: " + ", ".join(failed))

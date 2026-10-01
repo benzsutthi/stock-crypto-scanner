@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN") or "F1+rOyHfN+u/c6jLTBvlMlLhFYkIaa8Uit7iSeriOYEl39/K7QHulG4Ya6IWqzgzeNg0zcNhQ4LzeU3GAboJbTmn0c39Q/E+YltCsD3H7bF/Ae4YZ4tKvQ5ZkmCYedcQac2XEe/3Zlq+DVYyyPylQgdB04t89/1O/w1cDnyilFU="
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "")
 
 # การตั้งค่าการสแกน
 MAX_PICKS_PER_CATEGORY = 3       # จำนวนตัวเลือกเด่นที่สุดที่จะส่งเข้า LINE ต่อหมวด (Top 3)
@@ -19,7 +19,7 @@ US_STOCKS = [
     "NFLX", "ORCL", "ADBE", "CRM", "INTC", "QCOM", "TXN", "AMAT", "MU", "LRCX",
     "KLAC", "MRVL", "ARM", "SMCI", "ASML", "TSM", "BABA", "PDD", "BIDU", "JD",
     # Crypto / FinTech / High Growth
-    "COIN", "MSTR", "MARA", "RIOT", "HOOD", "SQ", "PYPL", "V", "MA", "AXP",
+    "COIN", "MSTR", "MARA", "RIOT", "HOOD", "XYZ", "PYPL", "V", "MA", "AXP",
     "SHOP", "UBER", "ABNB", "DASH", "SNOW", "DDOG", "NET", "CRWD", "PANW", "ZS",
     # EV / Clean Tech / Industrials
     "RIVN", "LCID", "NIO", "LI", "XPEV", "CAT", "DE", "BA", "GE", "LMT",
@@ -40,13 +40,13 @@ THAI_STOCKS = [
     "BJC.BK", "BLA.BK", "BTG.BK", "BTS.BK", "CBG.BK", "CCET.BK", "CENTEL.BK",
     "CHG.BK", "CK.BK", "CKP.BK", "COM7.BK", "CPALL.BK", "CPF.BK", "CPN.BK", "CRC.BK",
     "DELTA.BK", "DOHOME.BK", "EA.BK", "EGCO.BK", "ERW.BK", "GLOBAL.BK", "GPSC.BK", "GULF.BK",
-    "GUNKUL.BK", "HANA.BK", "HMPRO.BK", "ICHI.BK", "INTUCH.BK", "ITC.BK", "IVL.BK", "JAS.BK",
+    "GUNKUL.BK", "HANA.BK", "HMPRO.BK", "ICHI.BK", "ITC.BK", "IVL.BK", "JAS.BK",
     "JMART.BK", "JMT.BK", "KBANK.BK", "KCE.BK", "KKP.BK", "KTB.BK", "KTC.BK", "LH.BK",
     "M.BK", "MAJOR.BK", "MASTER.BK", "MBK.BK", "MEGA.BK", "MINT.BK", "MOSHI.BK", "MTC.BK",
     "OR.BK", "OSP.BK", "PLANB.BK", "PR9.BK", "PRM.BK", "PTG.BK", "PTL.BK", "PTT.BK",
     "PTTEP.BK", "PTTGC.BK", "QH.BK", "RATCH.BK", "RBF.BK", "RCL.BK", "SAPPE.BK", "SAWAD.BK",
     "SCB.BK", "SCC.BK", "SCGP.BK", "SIRI.BK", "SISB.BK", "SJWD.BK", "SPALI.BK", "SPRC.BK",
-    "STA.BK", "STEC.BK", "TASCO.BK", "TCAP.BK", "THANI.BK", "THCOM.BK", "TIDLOR.BK", "TISCO.BK",
+    "STA.BK", "STECON.BK", "TASCO.BK", "TCAP.BK", "THANI.BK", "THCOM.BK", "TIDLOR.BK", "TISCO.BK",
     "TLI.BK", "TOP.BK", "TRUE.BK", "TTB.BK", "TU.BK", "VGI.BK", "WHA.BK"
 ]
 
