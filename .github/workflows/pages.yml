@@ -45,6 +45,7 @@ jobs:
           python stock-crypto-scanner/build_market_data.py --output _site/data/stocks.json
           python stock-crypto-scanner/build_crypto_data.py --output _site/data/crypto.json
           cp stock-crypto-scanner/index.html stock-crypto-scanner/style.css stock-crypto-scanner/screener.css stock-crypto-scanner/app.js _site/
+          cp stock-crypto-scanner/average-cost.html stock-crypto-scanner/average-cost.css stock-crypto-scanner/average-cost.js _site/
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:

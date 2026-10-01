@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1018">
+  <title>คำนวณถัวเฉลี่ยต้นทุน — MarketScope</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="average-cost.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="index.html"><span class="brand-mark">M</span><span>Market<span class="brand-light">Scope</span><small>MARKET INTELLIGENCE</small></span></a>
+      <div class="side-label">WORKSPACE</div>
+      <a class="nav" href="index.html"><span>▦</span> ภาพรวมตลาด</a>
+      <a class="nav" href="index.html#screener"><span>⌕</span> Stock & Crypto screener</a>
+      <a class="nav active" href="average-cost.html" aria-current="page"><span>∑</span> คำนวณถัวเฉลี่ยต้นทุน</a>
+      <div class="sidebar-bottom"><p>วางแผนต้นทุนก่อนซื้อเพิ่ม<br>รองรับหุ้นและคริปโท</p></div>
+    </aside>
+    <main class="main">
+      <header class="topbar"><div class="breadcrumb">เครื่องมือ <span>/</span> <b>ถัวเฉลี่ยต้นทุน</b></div><a class="back-link" href="index.html">← กลับไป Screener</a></header>
+      <section class="calculator-heading">
+        <span class="eyebrow">PLAN YOUR NEXT BUY</span>
+        <h1>ซื้อเพิ่มเท่านี้<br><span>ต้นทุนใหม่เท่าไหร่?</span></h1>
+        <p>ใส่ต้นทุนและจำนวนที่ถืออยู่ เทียบกับราคาที่จะซื้อเพิ่ม<br>คำนวณต้นทุนเฉลี่ยแบบถ่วงน้ำหนักได้ทันที</p>
+      </section>
+      <div class="calculator-layout">
+        <form id="average-form" class="calculator-card" novalidate>
+          <div class="calculator-card-heading"><h2>แผนการซื้อ</h2><button type="button" id="example" class="subtle-button">ลองตัวอย่าง</button></div>
+          <div class="input-grid asset-settings">
+            <label>ชื่อสินทรัพย์ <span class="optional">(ไม่บังคับ)</span><input id="asset-name" type="text" placeholder="เช่น PTT, NVDA, BTC" maxlength="40"></label>
+            <label>สกุลเงิน<select id="currency"><option value="THB">THB · บาท</option><option value="USD">USD · ดอลลาร์</option><option value="USDT">USDT</option></select></label>
+          </div>
+          <fieldset><legend><span class="step-number">01</span> ที่ถืออยู่เดิม</legend>
+            <div class="input-grid">
+              <label>ต้นทุนเฉลี่ยเดิม / หน่วย<input id="old-price" type="number" min="0" step="any" inputmode="decimal" placeholder="เช่น 100" required></label>
+              <label>จำนวนที่ถืออยู่ <span class="optional">(หุ้น / เหรียญ)</span><input id="old-quantity" type="number" min="0" step="any" inputmode="decimal" placeholder="เช่น 1000" required></label>
+            </div>
+            <small>หากต้นทุนเฉลี่ยเดิมรวมค่าธรรมเนียมแล้ว ใช้ค่านั้นได้เลย</small>
+          </fieldset>
+          <fieldset><legend><span class="step-number">02</span> ที่ต้องการซื้อเพิ่ม</legend>
+            <div class="input-grid">
+              <label>ราคาซื้อเพิ่ม / หน่วย<input id="new-price" type="number" min="0" step="any" inputmode="decimal" placeholder="เช่น 80" required></label>
+              <label>จำนวนที่จะซื้อเพิ่ม<input id="new-quantity" type="number" min="0" step="any" inputmode="decimal" placeholder="เช่น 1000" required></label>
+            </div>
+            <label class="fee-label">ค่าธรรมเนียมซื้อเพิ่มรวม <span class="optional">(ไม่บังคับ)</span><input id="fees" type="number" min="0" step="any" inputmode="decimal" placeholder="0"></label>
+            <small>จำนวนรองรับทศนิยม เช่น BTC 0.01 เหรียญ · ราคาและค่าธรรมเนียมใช้สกุลเงินเดียวกัน</small>
+          </fieldset>
+          <p id="input-error" class="input-error" role="status"></p>
+          <div class="calculator-actions"><button type="submit" class="calculate-button">คำนวณต้นทุนใหม่ →</button><button type="reset" class="subtle-button">ล้างข้อมูล</button></div>
+        </form>
+        <section class="calculator-card results-card" aria-labelledby="results-title">
+          <span class="eyebrow">YOUR NEW POSITION</span><h2 id="results-title">ผลการคำนวณ</h2>
+          <p id="result-asset" class="result-asset">สินทรัพย์ของคุณ</p>
+          <div class="average-highlight"><span>ต้นทุนเฉลี่ยใหม่ / หน่วย</span><output id="average">—</output><p id="average-change">กรอกข้อมูลเพื่อดูผลการคำนวณ</p></div>
+          <dl class="result-details">
+            <div><dt>จำนวนรวมหลังซื้อเพิ่ม</dt><dd id="total-quantity">—</dd></div>
+            <div><dt>ต้นทุนรวมเดิม</dt><dd id="old-cost">—</dd></div>
+            <div><dt>เงินซื้อเพิ่ม รวมค่าธรรมเนียม</dt><dd id="new-cost">—</dd></div>
+            <div class="total-line"><dt>ต้นทุนรวมทั้งหมด</dt><dd id="total-cost">—</dd></div>
+          </dl>
+          <div class="formula-box"><b>สูตรต้นทุนเฉลี่ยถ่วงน้ำหนัก</b><p>(ต้นทุนเดิม × จำนวนเดิม + ราคาซื้อเพิ่ม × จำนวนซื้อเพิ่ม + ค่าธรรมเนียมซื้อเพิ่ม) ÷ จำนวนรวม</p></div>
+          <small class="calculation-note">ผลลัพธ์ปัดเพื่อแสดงสูงสุด 8 ตำแหน่งทศนิยม ค่าที่เล็กมากแสดงแบบเลขยกกำลัง การคำนวณยังใช้ค่าก่อนปัด · ไม่รวมค่าธรรมเนียมตอนขาย</small>
+        </section>
+      </div>
+      <footer>MarketScope · เครื่องมือวางแผนต้นทุน <span>คำนวณในเบราว์เซอร์ ไม่ต้องเชื่อมต่อข้อมูลตลาด</span></footer>
+    </main>
+  </div>
+  <script src="average-cost.js"></script>
+</body>
+</html>
