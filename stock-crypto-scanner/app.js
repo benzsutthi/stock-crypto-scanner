@@ -28,12 +28,31 @@ function row(asset) {
   const rsiClass=asset.rsi>=70?'rsi-hot':asset.rsi>=55?'rsi-strong':Number.isFinite(asset.rsi)&&asset.rsi<30?'rsi-low':'';
   const badges=signals.length?signals.map(s=>`<span class="signal-badge ${s.type}" title="${esc(s.description)}">${s.type==='breakout'?'↗ ':s.type==='volume'?'▴ ':s.type==='macd'?'✦ ':s.type==='rsi-high'?'! ':''}${esc(s.label)}</span>`).join(' '):`<span class="signal-empty">${crypto?(asset.historyUnavailable?'ข้อมูลกราฟไม่พร้อม':historyPending?'กำลังวิเคราะห์':'ยังไม่พบสัญญาณ'):asset.hasMarketData?'ยังไม่พบสัญญาณ':'รอข้อมูลตลาด'}</span>`;
   const age=asset.priceDate?Math.floor((Date.now()-Date.parse(asset.priceDate))/86400000):null;
-  const metadata=asset.priceDate?`<small class="signal-empty">ปิด ${esc(asset.priceDate)}${age>4?' · ข้อมูลเก่า':''}</small>`:'';
+   const quoteTime=asset.quoteUpdatedAt?new Date(asset.quoteUpdatedAt):null;
+   const quoteMeta=crypto&&quoteTime&&Number.isFinite(quoteTime.getTime())?`<small class="signal-empty">ราคา ${esc(new Intl.DateTimeFormat('th-TH',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Bangkok'}).format(quoteTime))}${asset.quoteStale||Date.now()-quoteTime.getTime()>2*3600000?' · ราคาล่าช้า':''}</small>`:'';
+   const metadata=(asset.priceDate?`<small class="signal-empty" title="${esc(asset.historySource||asset.priceSource||'แท่งปิดรายวัน')}">ปิด ${esc(asset.priceDate)}${asset.historyStale||asset.updateError||age>(crypto?1:4)?' · ข้อมูลเก่า/ล่าช้า':''}${crypto&&Number.isFinite(asset.techPrice)?` · ราคาวิเคราะห์ ${money(asset.techPrice)}`:''}</small>`:'')+quoteMeta;
   return `<tr><td><div class="asset-cell"><button class="watch-star" data-watch="${esc(assetKey(asset))}" aria-label="ติดตาม ${esc(symbol)}" aria-pressed="${watchlist.has(assetKey(asset))}">${watchlist.has(assetKey(asset))?'★':'☆'}</button><span class="coin-logo ${type}">${esc(logo)}</span><span><span class="asset-name">${esc(asset.name)}</span><span class="asset-symbol">${esc(symbol)}${asset.sector?` · ${esc(asset.sector)}`:''}</span>${metadata}</span></div></td><td><span class="market-badge ${type}">${badge}</span></td><td class="align-right price">${price}</td><td class="align-right ${asset.change===null?'':isUp?'change-up':'change-down'}">${changeText}</td><td class="align-right ${rsiClass}">${rsiText}</td><td class="signals-cell">${badges}${asset.score?`<span class="score-pill">${asset.score} pts</span>`:''}<small class="signal-empty metric-detail">Volume ${Number.isFinite(asset.volumeRatio)?asset.volumeRatio.toFixed(2)+'×':'—'} · ระยะจาก High20 ${Number.isFinite(asset.breakoutDistance)?asset.breakoutDistance.toFixed(2)+'%':'—'}</small></td></tr>`;
+}
+function earlyFresh(a, now=new Date()){
+  if(!a.earlyCycle||a.historyUnavailable||a.historyStale||a.quoteStale||a.updateError||!a.priceDate||!a.snapshotAt)return false;
+  const snapshotAge=now.getTime()-Date.parse(a.snapshotAt);
+  if(!Number.isFinite(snapshotAge)||snapshotAge<0||snapshotAge>3*3600000)return false;
+  if(a.market==='Crypto'){
+    const quoteAge=now.getTime()-Date.parse(a.quoteUpdatedAt);
+    if(!Number.isFinite(quoteAge)||quoteAge<0||quoteAge>2*3600000)return false;
+  }
+  const zone=a.market==='Thai'?'Asia/Bangkok':a.market==='US'?'America/New_York':'UTC';
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).map(p=>[p.type,p.value]));
+  const date=new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00Z`);
+  const minutes=Number(parts.hour)*60+Number(parts.minute);
+  if(a.market==='Crypto'||minutes<(a.market==='Thai'?17*60+15:16*60+30))date.setUTCDate(date.getUTCDate()-1);
+  if(a.market!=='Crypto')while([0,6].includes(date.getUTCDay()))date.setUTCDate(date.getUTCDate()-1);
+  return a.priceDate===date.toISOString().slice(0,10);
 }
 function matchesFilters(a){
   const types=[...document.querySelectorAll('[data-condition]:checked')].map(e=>e.value);
-  const checks=types.map(t=>(a.signals||[]).some(s=>s.type===t));
+   const checks=types.map(t=>(a.signals||[]).some(s=>s.type===t));
+   if(types.includes('early-cycle')&&!earlyFresh(a))return false;
   const mode=document.querySelector('#filter-mode').value;
   if(checks.length && !(mode==='and'?checks.every(Boolean):checks.some(Boolean)))return false;
   for(const [id,field,op] of [['rsi-min','rsi','min'],['rsi-max','rsi','max'],['volume-min','volumeRatio','min'],['score-min','score','min']]){
@@ -47,7 +66,9 @@ function render(){
   const signalFilter=document.querySelector('#signal-filter').value;
   const all=[...cryptoAssets,...stocks];
   const filtered=all.filter(a=>(selectedMarket==='All'||a.market===selectedMarket)&&(!q||`${a.symbol} ${a.name} ${a.sector||''}`.toLowerCase().includes(q))&&(signalFilter==='all'||(a.signals||[]).some(s=>s.type===signalFilter))&&matchesFilters(a));
-  filtered.sort((a,b)=>(b.score||0)-(a.score||0)||(b.change??-Infinity)-(a.change??-Infinity));
+   const earlyMode=signalFilter==='early-cycle'||[...document.querySelectorAll('[data-condition]:checked')].some(e=>e.value==='early-cycle');
+   if(earlyMode)for(let i=filtered.length-1;i>=0;i--)if(!earlyFresh(filtered[i]))filtered.splice(i,1);
+   filtered.sort((a,b)=>(earlyMode?(b.earlyScore||0)-(a.earlyScore||0):0)||(b.score||0)-(a.score||0)||(b.change??-Infinity)-(a.change??-Infinity));
   const pages=Math.max(1,Math.ceil(filtered.length/pageSize));page=Math.min(page,pages);
   const visible=filtered.slice((page-1)*pageSize,page*pageSize);
   document.querySelector('#asset-rows').innerHTML=visible.length?visible.map(row).join(''):'<tr><td colspan="6" class="loading-row">ไม่พบสินทรัพย์ที่ค้นหา</td></tr>';
@@ -67,12 +88,16 @@ async function loadStockSnapshot(){
     if(!response.ok)throw new Error(`HTTP ${response.status}`);
     const snapshot=await response.json();
     if(!Array.isArray(snapshot.assets)||snapshot.assets.length===0)throw new Error('Empty stock snapshot');
-    stocks=snapshot.assets.map(asset=>({...asset,hasMarketData:true}));
+    stocks=snapshot.assets.map(asset=>({...asset,hasMarketData:true,snapshotAt:snapshot.generatedAt}));
     const generated=snapshot.generatedAt?new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Bangkok'}).format(new Date(snapshot.generatedAt)):'—';
-    note.textContent=`หุ้นอัปเดต ${generated} จาก Yahoo Finance · ข้อมูลหุ้นรายวัน`;
+    note.textContent=`หุ้นอัปเดต ${generated} จาก Yahoo Finance · ราคาปิดปรับสิทธิ ไม่ใช่เรียลไทม์ · ล่าช้า/ใช้รอบก่อน ${stocks.filter(a=>a.historyStale||a.updateError).length} รายการ`;
+    try{localStorage.setItem('ms-stock-snapshot',JSON.stringify(snapshot));}catch{}
     render();
   }catch(error){
-    note.textContent='ยังโหลด snapshot หุ้นไม่สำเร็จ · ข้อมูลหุ้นจะแสดงหลัง workflow อัปเดต';
+    const cached=stored('ms-stock-snapshot',null);
+    if(Array.isArray(cached?.assets)&&cached.assets.length)stocks=cached.assets.map(a=>({...a,hasMarketData:true,snapshotAt:cached.generatedAt,updateError:'Cached snapshot'}));
+    note.textContent='อัปเดตหุ้นไม่สำเร็จ · แสดงรายการ/ข้อมูลรอบก่อน ไม่ใช้คัดกรองต้นรอบ';
+    render();
   }
 }
 function ema(values,period){
@@ -127,7 +152,7 @@ async function loadCrypto(){
     if(!response.ok) throw new Error(`HTTP ${response.status}`);
     const snapshot=await response.json();
     if(!Array.isArray(snapshot.assets)||!snapshot.assets.length)throw new Error('Empty crypto snapshot');
-    cryptoAssets=snapshot.assets;
+    cryptoAssets=snapshot.assets.map(a=>({...a,snapshotAt:snapshot.generatedAt,updateError:snapshot.updateError}));
     document.querySelector('.status small').textContent=`Crypto: ${snapshot.source} snapshot`;
     const btc=cryptoAssets.find(c=>c.symbol==='BTC');
     if(btc){document.querySelector('#btc-price').innerHTML=`${money(btc.price)} <small>USD</small>`;document.querySelector('#btc-change').textContent=Number.isFinite(btc.change)?`${btc.change>=0?'+':''}${btc.change.toFixed(2)}%`:'—';document.querySelector('#btc-change').className=`pulse-change ${btc.change>=0?'positive':'change-down'}`;}
@@ -138,7 +163,7 @@ async function loadCrypto(){
     try{localStorage.setItem('ms-crypto-snapshot',JSON.stringify(snapshot));}catch{}
   } catch(error) {
     const cached=stored('ms-crypto-snapshot',null);
-    if(!cryptoAssets.length&&Array.isArray(cached?.assets))cryptoAssets=cached.assets;
+    if(Array.isArray(cached?.assets))cryptoAssets=cached.assets.map(a=>({...a,snapshotAt:cached.generatedAt,updateError:'Cached snapshot'}));
     count.textContent=cryptoAssets.length;
     status.textContent=cryptoAssets.length?'อัปเดตคริปโทไม่สำเร็จ · แสดงข้อมูลที่โหลดสำเร็จครั้งก่อน (ดูวันแท่งปิดรายตัว)':'ยังโหลดข้อมูลคริปโทไม่ได้ กรุณาลองรีเฟรช';
     if(!cryptoAssets.length)document.querySelector('#btc-change').textContent='ข้อมูลไม่พร้อม';
@@ -155,13 +180,17 @@ const filters=document.createElement('section');
 filters.className='advanced-filters';
 filters.innerHTML=`<h3>เงื่อนไขคัดกรอง</h3><div class="filter-grid"><label>รูปแบบ <select id="filter-mode"><option value="and">ตรงทุกข้อ (AND)</option><option value="or">อย่างน้อยหนึ่งข้อ (OR)</option></select></label><label>Preset <select id="preset"><option value="">เลือกชุดเงื่อนไข</option><option value="breakout">Breakout แข็งแรง</option><option value="momentum">โมเมนตัมขาขึ้น</option><option value="oversold">Oversold</option></select></label><label>RSI ต่ำสุด <input id="rsi-min" type="number" min="0" max="100"></label><label>RSI สูงสุด <input id="rsi-max" type="number" min="0" max="100"></label><label>Volume ขั้นต่ำ (×) <input id="volume-min" type="number" min="0" step="0.1"></label><label>คะแนนขั้นต่ำ <input id="score-min" type="number" min="0"></label></div><div class="condition-list">${[['breakout','Breakout 20D'],['rsi-high','RSI ≥70'],['rsi-momentum','RSI 55–70'],['volume','Volume Spike'],['macd','MACD Cross'],['trend','EMA ขาขึ้น'],['rsi-low','Oversold']].map(([v,l])=>`<label><input data-condition type="checkbox" value="${v}"> ${l}</label>`).join('')}</div><div class="filter-actions"><button id="save-filters">บันทึกตัวกรอง</button><button id="reset-filters">ล้างเงื่อนไข</button><label><input id="watch-only" type="checkbox"> เฉพาะ Watchlist</label><button id="export-watch">ส่งออก Watchlist สำหรับ LINE</button><span id="filter-message" role="status"></span></div><small>Watchlist บันทึกในเบราว์เซอร์นี้ · LINE ใช้รายการที่ส่งออกไปตั้งค่าใน GitHub Secrets</small>`;
 document.querySelector('.table-wrap').before(filters);
+document.querySelector('#preset').insertAdjacentHTML('beforeend','<option value="early">ต้นรอบรายวัน · ไม่ไล่ราคา</option>');
+document.querySelector('#signal-filter').insertAdjacentHTML('beforeend','<option value="early-cycle">ต้นรอบรายวัน</option>');
+filters.querySelector('.condition-list').insertAdjacentHTML('afterbegin','<label><input data-condition type="checkbox" value="early-cycle"> ต้นรอบรายวัน</label>');
+filters.insertAdjacentHTML('beforeend','<p class="crypto-data-status">ต้นรอบ: ฐาน 20 วันกว้าง ≤15% · เพิ่งตัด EMA20/MACD หรือเริ่ม Breakout · RSI 45–65 · Volume ≥1.2× · ราคาเหนือ EMA20 ไม่เกิน 5% และห่าง High20 −5 ถึง +3% · ใช้แท่งปิดและ snapshot ไม่เกิน 3 ชั่วโมงเท่านั้น (วันหยุดตลาดอาจถูกระบุว่าล่าช้า) · เป็นรายการศึกษาต่อ ไม่ใช่คำแนะนำซื้อ</p>');
 const pagination=document.createElement('div');pagination.className='pagination';
 pagination.innerHTML='<button id="page-prev">← ก่อนหน้า</button><span id="page-label"></span><button id="page-next">ถัดไป →</button>';
 document.querySelector('.table-wrap').after(pagination);
 const filterState=()=>({mode:document.querySelector('#filter-mode').value,market:selectedMarket,types:[...document.querySelectorAll('[data-condition]:checked')].map(e=>e.value),values:Object.fromEntries(['rsi-min','rsi-max','volume-min','score-min'].map(id=>[id,document.querySelector('#'+id).value]))});
 function applyFilterState(s){document.querySelector('#filter-mode').value=s.mode||'and';selectedMarket=s.market||'All';document.querySelectorAll('[data-condition]').forEach(e=>e.checked=(s.types||[]).includes(e.value));for(const id of ['rsi-min','rsi-max','volume-min','score-min'])document.querySelector('#'+id).value=s.values?.[id]??'';document.querySelector('#signal-filter').value='all';page=1;render();}
 filters.addEventListener('change',()=>{page=1;render();});
-document.querySelector('#preset').addEventListener('change',e=>{const presets={breakout:{types:['breakout','volume'],values:{'rsi-min':55,'rsi-max':70,'volume-min':1.5}},momentum:{types:['trend','rsi-momentum'],values:{'rsi-min':55,'rsi-max':69.9}},oversold:{types:['rsi-low'],values:{'rsi-max':29.9}}};if(presets[e.target.value])applyFilterState({...presets[e.target.value],market:selectedMarket});});
+document.querySelector('#preset').addEventListener('change',e=>{const presets={early:{types:['early-cycle'],values:{'rsi-min':45,'rsi-max':65,'volume-min':1.2}},breakout:{types:['breakout','volume'],values:{'rsi-min':55,'rsi-max':70,'volume-min':1.5}},momentum:{types:['trend','rsi-momentum'],values:{'rsi-min':55,'rsi-max':69.9}},oversold:{types:['rsi-low'],values:{'rsi-max':29.9}}};if(presets[e.target.value])applyFilterState({...presets[e.target.value],market:selectedMarket});});
 document.querySelector('#save-filters').addEventListener('click',()=>{try{localStorage.setItem('ms-filters',JSON.stringify(filterState()));document.querySelector('#filter-message').textContent='บันทึกแล้ว';}catch{document.querySelector('#filter-message').textContent='เบราว์เซอร์ไม่อนุญาตให้บันทึก';}});
 document.querySelector('#reset-filters').addEventListener('click',()=>{document.querySelector('#preset').value='';applyFilterState({});});
 document.querySelector('#page-prev').addEventListener('click',()=>{page--;render();});
@@ -173,3 +202,5 @@ const cryptoStatus=document.createElement('p');cryptoStatus.id='crypto-data-stat
 document.querySelector('thead th:nth-child(4)').textContent='เปลี่ยนแปลง หุ้น 1D / Crypto 24h';
 loadCrypto();
 loadStockSnapshot();
+// Reload snapshots while visible; this does not turn daily data into live quotes.
+setInterval(()=>{if(!document.hidden&&!document.querySelector('#refresh').disabled)document.querySelector('#refresh').click();},5*60*1000);

@@ -9,7 +9,9 @@ on:
   schedule:
     - cron: '30 23 * * 1-5'
     - cron: '0 11 * * 1-5'
-    - cron: '17 */4 * * *'
+    - cron: '17 * * * *'
+    # US close + publication buffer, covering both daylight and standard time.
+    - cron: '45 20,21 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -42,6 +44,8 @@ jobs:
         run: |
           mkdir -p _site
           python -m pip install --disable-pip-version-check -r stock-crypto-scanner/requirements.txt
+          python -m unittest discover -s stock-crypto-scanner -p 'test_*.py'
+          (cd stock-crypto-scanner && node test_filters.cjs && node test_crypto_loader.cjs && node test_average_cost.cjs && node test_early_cycle.cjs)
           python stock-crypto-scanner/build_market_data.py --output _site/data/stocks.json
           python stock-crypto-scanner/build_crypto_data.py --output _site/data/crypto.json
           cp stock-crypto-scanner/index.html stock-crypto-scanner/style.css stock-crypto-scanner/screener.css stock-crypto-scanner/app.js _site/

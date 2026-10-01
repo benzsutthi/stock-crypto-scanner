@@ -8,7 +8,7 @@ const document = {
   querySelectorAll: () => [{value:'breakout'},{value:'volume'}]
 };
 const context = vm.createContext({document, money: String, watchlist:new Set(), assetKey:a=>`${a.market}:${a.symbol}`});
-vm.runInContext(code.slice(code.indexOf('function matchesFilters'),code.indexOf('function render')),context);
+vm.runInContext(code.slice(code.indexOf('function earlyFresh'),code.indexOf('function render')),context);
 const asset = {rsi:60,volumeRatio:2,score:55,signals:[{type:'breakout'},{type:'volume'}]};
 assert.equal(context.matchesFilters(asset),true);
 assert.equal(context.matchesFilters({...asset,rsi:null}),false);

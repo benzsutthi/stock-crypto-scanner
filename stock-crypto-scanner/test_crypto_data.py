@@ -30,6 +30,18 @@ class CryptoDataTest(unittest.TestCase):
         self.assertEqual(asset['signals'],[])
         self.assertTrue(asset['historyUnavailable'])
 
+    def test_stale_history_and_quote_are_not_early_candidates(self):
+        index = pd.date_range(end=pd.Timestamp(datetime.now(timezone.utc)).normalize()-pd.Timedelta(days=2), periods=60)
+        frame = pd.DataFrame({'Close':[100.]*60, 'High':[101.]*60,
+                              'Low':[99.]*60, 'Volume':[100.]*60}, index=index)
+        asset = enrich({'symbol':'BTC','price':100.,'change':0.}, frame, 'test')
+        self.assertTrue(asset['historyUnavailable'])
+        self.assertEqual(asset['signals'], [])
+        frame.index += pd.Timedelta(days=1)
+        asset = enrich({'symbol':'BTC','price':100.,'change':0.,'quoteUpdatedAt':'invalid'}, frame, 'test')
+        self.assertTrue(asset['quoteStale'])
+        self.assertFalse(asset['earlyCycle'])
+
 
 if __name__ == '__main__':
     unittest.main()

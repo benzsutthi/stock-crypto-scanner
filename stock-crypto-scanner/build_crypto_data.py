@@ -12,6 +12,38 @@ import yfinance as yf
 
 from build_market_data import extract_ticker_frame
 from technicals import analyze
+from market_history import clean_history
+
+# Provider IDs, not ticker spelling, establish identity. Unmapped coins retain
+# their market quote but never receive technical signals from a guessed ticker.
+HISTORY_IDENTITIES = {
+    'BTC': ('btc-bitcoin', 'bitcoin'), 'ETH': ('eth-ethereum', 'ethereum'),
+    'SOL': ('sol-solana', 'solana'), 'XRP': ('xrp-xrp', 'ripple'),
+    'BNB': ('bnb-binance-coin', 'binancecoin'), 'DOGE': ('doge-dogecoin', 'dogecoin'),
+    'ADA': ('ada-cardano', 'cardano'), 'TRX': ('trx-tron', 'tron'),
+    'LINK': ('link-chainlink', 'chainlink'), 'AVAX': ('avax-avalanche', 'avalanche-2'),
+    'LTC': ('ltc-litecoin', 'litecoin'), 'BCH': ('bch-bitcoin-cash', 'bitcoin-cash'),
+    'DOT': ('dot-polkadot', 'polkadot'), 'XLM': ('xlm-stellar', 'stellar'),
+    'SHIB': ('shib-shiba-inu', 'shiba-inu'), 'UNI': ('uni-uniswap', 'uniswap'),
+    'ATOM': ('atom-cosmos', 'cosmos'), 'NEAR': ('near-near-protocol', 'near'),
+    'AAVE': ('aave-new', 'aave'), 'ETC': ('etc-ethereum-classic', 'ethereum-classic'),
+    'ZEC': ('zec-zcash', 'zcash'), 'XMR': ('xmr-monero', 'monero'),
+    'HBAR': ('hbar-hedera-hashgraph', 'hedera-hashgraph'), 'SUI': ('sui-sui', 'sui'),
+    'CRO': ('cro-cryptocom-chain', 'crypto-com-chain'), 'QNT': ('qnt-quant', 'quant-network'),
+    'TAO': ('tao-bittensor', 'bittensor'), 'ENA': ('ena-ethena', 'ethena'),
+    'ONDO': ('ondo-ondo', 'ondo-finance'), 'MNT': ('mnt-mantle', 'mantle'),
+    'WLD': ('wld-worldcoin', 'worldcoin-wld'), 'PEPE': ('pepe-pepe', 'pepe'),
+    'ICP': ('icp-internet-computer', 'internet-computer'), 'PAXG': ('paxg-pax-gold', 'pax-gold'),
+    'ARB': ('arb-arbitrum', 'arbitrum'), 'KAS': ('kas-kaspa', 'kaspa'),
+    'POL': ('pol-polygon-ecosystem-token', 'polygon-ecosystem-token'),
+    'ALGO': ('algo-algorand', 'algorand'), 'CAKE': ('cake-pancakeswap', 'pancakeswap-token'),
+    'FIL': ('fil-filecoin', 'filecoin'), 'DASH': ('dash-dash', 'dash'),
+    'VET': ('vet-vechain', 'vechain'), 'INJ': ('inj-injective-protocol', 'injective-protocol'),
+}
+
+
+def history_ticker(coin):
+    return coin['symbol'] + '-USD' if coin.get('id') in HISTORY_IDENTITIES.get(coin['symbol'], ()) else None
 
 
 def fetch_universe():
@@ -23,6 +55,7 @@ def fetch_universe():
         if not coins:
             raise ValueError('Empty ranking')
         return [dict(id=c['id'], symbol=c['symbol'].upper(), name=c['name'], rank=c['rank'],
+                     quoteUpdatedAt=c.get('last_updated'),
                      price=c['quotes']['USD'].get('price'), change=c['quotes']['USD'].get('percent_change_24h')) for c in coins], 'CoinPaprika'
     except (requests.RequestException, ValueError, KeyError) as error:
         errors.append(str(error))
@@ -34,6 +67,7 @@ def fetch_universe():
         if not isinstance(coins, list) or not coins:
             raise ValueError('Empty ranking')
         return [dict(id=c['id'], symbol=c['symbol'].upper(), name=c['name'], rank=c['market_cap_rank'],
+                     quoteUpdatedAt=c.get('last_updated'),
                      price=c['current_price'], change=c['price_change_percentage_24h']) for c in coins], 'CoinGecko'
     except (requests.RequestException, ValueError, KeyError) as error:
         errors.append(str(error))
@@ -42,13 +76,9 @@ def fetch_universe():
 
 def confirmed(frame, today=None):
     today = today or datetime.now(timezone.utc).date()
-    required = ['Close', 'High', 'Low', 'Volume']
-    if frame.empty or any(c not in frame.columns for c in required):
+    frame = clean_history(frame)
+    if frame.empty:
         return pd.DataFrame()
-    frame = frame.copy()
-    for col in required:
-        frame[col] = pd.to_numeric(frame[col], errors='coerce')
-    frame = frame.dropna(subset=required)
     return frame.loc[[stamp.date() < today for stamp in frame.index]]
 
 
@@ -65,28 +95,44 @@ def exchange_history(symbol):
 
 def enrich(coin, frame, history_source):
     asset = dict(coin, market='Crypto', currency='USD', rsi=None, signals=[], score=0,
-                 historyUnavailable=True, historySource=None, priceDate=None)
-    if len(frame) >= 50 and (datetime.now(timezone.utc).date()-frame.index[-1].date()).days <= 4:
+                 historyUnavailable=True, historySource=None, priceDate=None,
+                 earlyCycle=False, earlyScore=0)
+    if len(frame) >= 50 and (datetime.now(timezone.utc).date()-frame.index[-1].date()).days == 1:
         result = analyze(frame)
         asset.update(result)
         asset.update(price=coin['price'], change=coin['change'], techPrice=result['price'],
                      priceDate=frame.index[-1].date().isoformat(), historySource=history_source,
-                     historyUnavailable=False)
+                      historyUnavailable=False)
+        try:
+            quote_time = datetime.fromisoformat(coin['quoteUpdatedAt'].replace('Z', '+00:00'))
+            age = (datetime.now(timezone.utc)-quote_time).total_seconds()
+            asset['quoteStale'] = not 0 <= age <= 2*3600
+        except (KeyError, ValueError, TypeError, AttributeError):
+            asset['quoteStale'] = True
+        if asset['quoteStale']:
+            asset['earlyCycle'] = False
+            asset['signals'] = [s for s in asset['signals'] if s['type'] != 'early-cycle']
     return asset
 
 
 def build_snapshot(output):
     coins, source = fetch_universe()
     symbols = Counter(c['symbol'] for c in coins)
-    tickers = [c['symbol']+'-USD' for c in coins if symbols[c['symbol']] == 1]
-    downloaded = yf.download(tickers, period='1y', interval='1d', group_by='ticker',
-                             auto_adjust=True, threads=8, progress=False, timeout=15)
+    tickers = [history_ticker(c) for c in coins if symbols[c['symbol']] == 1 and history_ticker(c)]
+    try:
+        downloaded = yf.download(tickers, period='1y', interval='1d', group_by='ticker',
+                                 auto_adjust=True, threads=8, progress=False, timeout=15) if tickers else pd.DataFrame()
+    except Exception as error:
+        print(f'Yahoo crypto history unavailable; trying verified Binance pairs: {error}')
+        downloaded = pd.DataFrame()
     def worker(coin):
-        if symbols[coin['symbol']] != 1:
-            return enrich(coin, pd.DataFrame(), None)  # Never guess identities from duplicate tickers.
-        frame = confirmed(extract_ticker_frame(downloaded, coin['symbol']+'-USD'))
+        if symbols[coin['symbol']] != 1 or not history_ticker(coin):
+            asset = enrich(coin, pd.DataFrame(), None)
+            asset['historyUnavailableReason'] = 'Asset identity not verified or duplicate ticker'
+            return asset
+        frame = confirmed(extract_ticker_frame(downloaded, history_ticker(coin)))
         history_source = 'Yahoo Finance (USD)'
-        if len(frame) < 50 or (datetime.now(timezone.utc).date()-frame.index[-1].date()).days > 4:
+        if len(frame) < 50 or (datetime.now(timezone.utc).date()-frame.index[-1].date()).days != 1:
             try:
                 frame = confirmed(exchange_history(coin['symbol']))
                 history_source = 'Binance market data (USDT)'
