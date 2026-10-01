@@ -117,28 +117,32 @@ def evaluate_dataframe(df: pd.DataFrame, symbol: str, display_name: str, asset_t
         signals = []
         score = 0
 
-        # 1. เงื่อนไข Momentum & Breakout
-        is_breakout = (curr_close >= float(prev['High_20']) * 0.99)
+        # 1. Breakout 20 วัน: เทียบราคาปัจจุบันกับ High 20 วันของแท่งก่อนหน้า
+        is_breakout = pd.notna(prev['High_20']) and curr_close > float(prev['High_20'])
         is_uptrend = (curr_close > ema20 > ema50)
-        if (is_uptrend or is_breakout) and vol_ratio >= 1.25 and (48 <= rsi <= 75):
-            if is_breakout:
-                signals.append("🔥 20-Day Breakout (ทะลุกรอบแนวต้าน 20 วัน)")
-                score += 35
-            if vol_ratio >= 2.0:
-                signals.append(f"⚡ Volume Spike ({vol_ratio:.1f}x โวลุ่มเข้าหนาแน่น)")
-                score += 30
-            else:
-                signals.append("🚀 Strong Uptrend (ทรงขาขึ้น+โวลุ่มซัพพอร์ต)")
-                score += 20
+        if is_breakout:
+            signals.append("🔥 20-Day Breakout (ราคาทะลุจุดสูงสุด 20 วัน)")
+            score += 35
+        if is_uptrend and vol_ratio >= 1.25 and 48 <= rsi < 70:
+            signals.append("🚀 Strong Uptrend (ราคายืนเหนือ EMA20/50 พร้อมโวลุ่ม)")
+            score += 20
+        if vol_ratio >= 1.5:
+            signals.append(f"⚡ Volume Spike ({vol_ratio:.1f}x ค่าเฉลี่ย 20 วัน)")
+            score += 20
 
         # 2. เงื่อนไข MACD Bullish Crossover
         if prev['MACD'] <= prev['MACD_Signal'] and curr['MACD'] > curr['MACD_Signal'] and curr_close > ema20:
             signals.append("🎯 MACD Golden Cross (สัญญาณกลับตัวขึ้นรอบใหม่)")
             score += 25
 
-        # 3. เงื่อนไข Oversold Bounce
-        if (float(prev['RSI']) < 32 and rsi >= 32) or (rsi < 30):
-            signals.append("💎 Oversold Zone (โซนขายมากเกินไป/เริ่มเด้ง)")
+        # 3. RSI momentum และโซนสุดโต่ง (RSI สูงเป็นคำเตือน ไม่ใช่สัญญาณซื้อ)
+        if 55 <= rsi < 70:
+            signals.append(f"📈 RSI Momentum ({rsi:.1f}: โมเมนตัมเชิงบวก)")
+            score += 10
+        elif rsi >= 70:
+            signals.append(f"⚠️ RSI สูง ({rsi:.1f}: เสี่ยงซื้อมากเกินไป)")
+        elif (float(prev['RSI']) < 32 and rsi >= 32) or (rsi < 30):
+            signals.append("💎 RSI Oversold (RSI ต่ำกว่า 30/เริ่มฟื้นจากเขตขายมาก)")
             score += 20
 
         if ema200 and curr_close > ema200:

@@ -10,7 +10,7 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN") or "F1+rOyHfN
 MAX_PICKS_PER_CATEGORY = 3       # จำนวนตัวเลือกเด่นที่สุดที่จะส่งเข้า LINE ต่อหมวด (Top 3)
 USE_DYNAMIC_BINANCE = True       # ดึงเหรียญคริปโตแบบ Dynamic Real-time จาก Binance
 BINANCE_MIN_VOL_USD = 8000000    # กรองเฉพาะเหรียญที่มี Volume ซื้อขาย 24 ชม. เกิน 8 ล้านดอลลาร์
-BINANCE_TOP_LIMIT = 60           # จำนวนเหรียญคริปโตสูงสุดที่จะนำมาสแกน
+BINANCE_TOP_LIMIT = 100          # จำนวนเหรียญคริปโตสูงสุดที่จะนำมาสแกน
 
 # รายชื่อหุ้นสหรัฐฯ ยอดนิยม 100 ตัว (US Top 100 Growth & Tech Leaders)
 US_STOCKS = [
