@@ -30,14 +30,14 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: Prepare static site
+        run: |
+          mkdir -p _site
+          cp stock-crypto-scanner/index.html stock-crypto-scanner/style.css stock-crypto-scanner/screener.css stock-crypto-scanner/app.js _site/
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: |
-            stock-crypto-scanner/index.html
-            stock-crypto-scanner/style.css
-            stock-crypto-scanner/screener.css
-            stock-crypto-scanner/app.js
+          path: _site
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
