@@ -20,7 +20,7 @@ def fetch_dynamic_binance_crypto(min_vol_usd: float = 8000000, limit: int = 60, 
     กรองเฉพาะเหรียญที่มี Volume สูงสุด และตัด Stablecoin ออก
     """
     try:
-        url = "https://api.binance.com/api/v3/ticker/24hr"
+        url = "https://data-api.binance.vision/api/v3/ticker/24hr"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=8) as response:
             data = json.loads(response.read().decode('utf-8'))
@@ -60,7 +60,7 @@ def analyze_binance_crypto(coin_name: str):
     """
     try:
         pair = f"{coin_name}USDT"
-        url = f"https://api.binance.com/api/v3/klines?symbol={pair}&interval=1d&limit=250"
+        url = f"https://data-api.binance.vision/api/v3/klines?symbol={pair}&interval=1d&limit=250"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             raw = json.loads(resp.read().decode('utf-8'))

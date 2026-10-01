@@ -16,7 +16,7 @@ assert.equal(context.matchesFilters({...asset,signals:[{type:'volume'}]}),false)
 values['filter-mode']='or';
 assert.equal(context.matchesFilters({...asset,signals:[{type:'volume'}]}),true);
 assert.equal(context.matchesFilters({...asset,volumeRatio:1.49}),false);
-vm.runInContext(code.slice(code.indexOf('function ema'),code.indexOf('async function loadCryptoHistory')),context);
+vm.runInContext(code.slice(code.indexOf('function ema'),code.indexOf('async function loadCrypto')),context);
 const candles=Array.from({length:60},()=>({close:100,high:101,volume:100}));
 const flat={};context.analyzeHistory(flat,candles);assert.equal(flat.rsi,50);
 candles[59]={close:102,high:105,volume:200};

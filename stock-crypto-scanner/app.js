@@ -4,9 +4,6 @@ const thaiStocks = [
 const usStocks = [
   ['NVDA','NVIDIA','Technology'],['AAPL','Apple','Technology'],['MSFT','Microsoft','Technology'],['AMZN','Amazon','Consumer'],['GOOGL','Alphabet','Technology'],['META','Meta Platforms','Technology'],['TSLA','Tesla','Automotive'],['AVGO','Broadcom','Technology'],['LLY','Eli Lilly','Healthcare'],['JPM','JPMorgan Chase','Finance'],['V','Visa','Finance'],['WMT','Walmart','Retail'],['COST','Costco','Retail'],['NFLX','Netflix','Media'],['AMD','Advanced Micro Devices','Technology']
 ];
-const cryptoFallback = [
-  ['bitcoin','Bitcoin','BTC'],['ethereum','Ethereum','ETH'],['tether','Tether','USDT'],['ripple','XRP','XRP'],['binancecoin','BNB','BNB'],['solana','Solana','SOL'],['usd-coin','USDC','USDC'],['tron','TRON','TRX'],['dogecoin','Dogecoin','DOGE'],['the-open-network','Toncoin','TON'],['cardano','Cardano','ADA'],['bitcoin-cash','Bitcoin Cash','BCH'],['avalanche-2','Avalanche','AVAX'],['chainlink','Chainlink','LINK'],['shiba-inu','Shiba Inu','SHIB']
-];
 let cryptoAssets = [];
 let selectedMarket = 'All';
 let historyPending = false;
@@ -24,7 +21,7 @@ function row(asset) {
   const logo=crypto?(symbol.slice(0,1)):asset.market==='Thai'?'฿':symbol.slice(0,1);
   const price=asset.price!==null&&Number.isFinite(asset.price)?money(asset.price,asset.currency||(asset.market==='Thai'?'THB':'USD')):'—';
   const isUp=asset.change!==null&&asset.change>=0;
-  const changeText=asset.change===null?'—':`${isUp?'+':''}${asset.change.toFixed(2)}%`;
+  const changeText=!Number.isFinite(asset.change)?'—':`${isUp?'+':''}${asset.change.toFixed(2)}%`;
   const badge=asset.market==='Thai'?'SET':asset.market==='US'?'US STOCK':'CRYPTO';
   const signals=asset.signals||[];
   const rsiText=Number.isFinite(asset.rsi)?asset.rsi.toFixed(1):'—';
@@ -72,7 +69,7 @@ async function loadStockSnapshot(){
     if(!Array.isArray(snapshot.assets)||snapshot.assets.length===0)throw new Error('Empty stock snapshot');
     stocks=snapshot.assets.map(asset=>({...asset,hasMarketData:true}));
     const generated=snapshot.generatedAt?new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Bangkok'}).format(new Date(snapshot.generatedAt)):'—';
-    note.textContent=`หุ้นอัปเดต ${generated} จาก Yahoo Finance · คริปโท CoinGecko/Binance · ข้อมูลหุ้นรายวัน`;
+    note.textContent=`หุ้นอัปเดต ${generated} จาก Yahoo Finance · ข้อมูลหุ้นรายวัน`;
     render();
   }catch(error){
     note.textContent='ยังโหลด snapshot หุ้นไม่สำเร็จ · ข้อมูลหุ้นจะแสดงหลัง workflow อัปเดต';
@@ -121,38 +118,32 @@ function analyzeHistory(asset,candles){
   asset.techPrice=closes[i];asset.historyUnavailable=false;
   asset.breakoutDistance=(closes[i]/previous20High-1)*100;
 }
-async function loadCryptoHistory(){
-  historyPending=true;render();
-  let cursor=0;
-  const worker=async()=>{while(cursor<cryptoAssets.length){const asset=cryptoAssets[cursor++];try{
-    const response=await fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(asset.symbol)}USDT&interval=1d&limit=250`,{signal:AbortSignal.timeout(15000)});
-    if(!response.ok)throw new Error(`HTTP ${response.status}`);
-    const raw=await response.json();
-    const closed=raw.filter(k=>Number(k[6])<Date.now());
-    if(closed.length<50)throw new Error('Insufficient closed history');
-    asset.priceDate=new Date(Number(closed.at(-1)[0])).toISOString().slice(0,10);
-    analyzeHistory(asset,closed.map(k=>({high:Number(k[2]),close:Number(k[4]),volume:Number(k[5])})));
-  }catch{asset.signals=[];asset.rsi=null;asset.score=0;asset.historyUnavailable=true;}}};
-  await Promise.all(Array.from({length:5},worker));
-  historyPending=false;render();
-}
 async function loadCrypto(){
   const count=document.querySelector('#crypto-count');
+  const status=document.querySelector('#crypto-data-status');
+  status.textContent='กำลังโหลดข้อมูลวิเคราะห์คริปโท...';
   try {
-    const response=await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h',{headers:{accept:'application/json'}});
+    const response=await fetch(`data/crypto.json?updated=${Date.now()}`,{cache:'no-store',signal:AbortSignal.timeout(20000)});
     if(!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data=await response.json();
-    cryptoAssets=data.map(c=>({id:c.id,symbol:c.symbol.toUpperCase(),name:c.name,market:'Crypto',price:Number(c.current_price)||0,change:Number(c.price_change_percentage_24h)||0,rsi:null,signals:[],score:0}));
-    const btc=data.find(c=>c.id==='bitcoin');
-    if(btc){document.querySelector('#btc-price').innerHTML=`${money(btc.current_price)} <small>USD</small>`;document.querySelector('#btc-change').textContent=`${btc.price_change_percentage_24h>=0?'+':''}${Number(btc.price_change_percentage_24h).toFixed(2)}%`;document.querySelector('#btc-change').className=`pulse-change ${btc.price_change_percentage_24h>=0?'positive':'change-down'}`;}
+    const snapshot=await response.json();
+    if(!Array.isArray(snapshot.assets)||!snapshot.assets.length)throw new Error('Empty crypto snapshot');
+    cryptoAssets=snapshot.assets;
+    document.querySelector('.status small').textContent=`Crypto: ${snapshot.source} snapshot`;
+    const btc=cryptoAssets.find(c=>c.symbol==='BTC');
+    if(btc){document.querySelector('#btc-price').innerHTML=`${money(btc.price)} <small>USD</small>`;document.querySelector('#btc-change').textContent=Number.isFinite(btc.change)?`${btc.change>=0?'+':''}${btc.change.toFixed(2)}%`:'—';document.querySelector('#btc-change').className=`pulse-change ${btc.change>=0?'positive':'change-down'}`;}
     count.textContent=cryptoAssets.length;
+    const generated=new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Bangkok'}).format(new Date(snapshot.generatedAt));
+    const analyzed=cryptoAssets.filter(a=>Number.isFinite(a.rsi)).length;
+    status.textContent=`Crypto Top ${cryptoAssets.length} ตาม Market Cap (${snapshot.source}) · วิเคราะห์ได้ ${analyzed}/${cryptoAssets.length} · อัปเดต ${generated}${snapshot.updateError?' · ใช้ข้อมูลรอบก่อน':''} · สัญญาณจากแท่งปิดรายวัน; ประวัติ USD/USDT ตามแหล่งข้อมูล`;
+    try{localStorage.setItem('ms-crypto-snapshot',JSON.stringify(snapshot));}catch{}
   } catch(error) {
-    cryptoAssets=cryptoFallback.map(([id,name,symbol])=>({symbol,name,market:'Crypto',price:0,change:null,fallback:true}));
+    const cached=stored('ms-crypto-snapshot',null);
+    if(!cryptoAssets.length&&Array.isArray(cached?.assets))cryptoAssets=cached.assets;
     count.textContent=cryptoAssets.length;
-    document.querySelector('#showing').title='เชื่อมต่อ CoinGecko ไม่สำเร็จ แสดงรายการตัวอย่าง';
+    status.textContent=cryptoAssets.length?'อัปเดตคริปโทไม่สำเร็จ · แสดงข้อมูลที่โหลดสำเร็จครั้งก่อน (ดูวันแท่งปิดรายตัว)':'ยังโหลดข้อมูลคริปโทไม่ได้ กรุณาลองรีเฟรช';
+    if(!cryptoAssets.length)document.querySelector('#btc-change').textContent='ข้อมูลไม่พร้อม';
   }
   render();
-  if(cryptoAssets.length) await loadCryptoHistory();
 }
 document.querySelector('#today').textContent=new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(new Date());
 document.querySelector('#year').textContent=new Date().getFullYear();
@@ -178,6 +169,7 @@ document.querySelector('#page-next').addEventListener('click',()=>{page++;render
 document.querySelector('#asset-rows').addEventListener('click',e=>{const button=e.target.closest('[data-watch]');if(!button)return;const key=button.dataset.watch;watchlist.has(key)?watchlist.delete(key):watchlist.add(key);try{localStorage.setItem('ms-watchlist',JSON.stringify([...watchlist]));}catch{}render();});
 document.querySelector('#export-watch').addEventListener('click',()=>{const blob=new Blob([JSON.stringify([...watchlist],null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='watchlist.json';a.click();URL.revokeObjectURL(url);});
 applyFilterState(stored('ms-filters',{}));
+const cryptoStatus=document.createElement('p');cryptoStatus.id='crypto-data-status';cryptoStatus.className='crypto-data-status';cryptoStatus.setAttribute('role','status');document.querySelector('.signals-guide').after(cryptoStatus);
 document.querySelector('thead th:nth-child(4)').textContent='เปลี่ยนแปลง หุ้น 1D / Crypto 24h';
 loadCrypto();
 loadStockSnapshot();

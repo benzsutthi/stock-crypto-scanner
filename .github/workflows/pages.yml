@@ -9,6 +9,7 @@ on:
   schedule:
     - cron: '30 23 * * 1-5'
     - cron: '0 11 * * 1-5'
+    - cron: '17 */4 * * *'
   workflow_dispatch:
 
 permissions:
@@ -42,6 +43,7 @@ jobs:
           mkdir -p _site
           python -m pip install --disable-pip-version-check -r stock-crypto-scanner/requirements.txt
           python stock-crypto-scanner/build_market_data.py --output _site/data/stocks.json
+          python stock-crypto-scanner/build_crypto_data.py --output _site/data/crypto.json
           cp stock-crypto-scanner/index.html stock-crypto-scanner/style.css stock-crypto-scanner/screener.css stock-crypto-scanner/app.js _site/
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
