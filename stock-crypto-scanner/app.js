@@ -182,11 +182,13 @@ let refreshInFlight=null;
 function refreshMarketData(){
   if(refreshInFlight)return refreshInFlight;
   const button=document.querySelector('#refresh');button.disabled=true;
-  refreshInFlight=Promise.allSettled([loadCrypto(),loadStockSnapshot()]).finally(()=>{refreshInFlight=null;button.disabled=false;globalThis.MarketUpdates?.checked();});
+  refreshInFlight=Promise.allSettled([loadCrypto(),loadStockSnapshot(),globalThis.MarketIndices?.load()]).finally(()=>{refreshInFlight=null;button.disabled=false;globalThis.MarketUpdates?.checked();});
   return refreshInFlight;
 }
 document.querySelector('#today').textContent=new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(new Date());
 document.querySelector('#year').textContent=new Date().getFullYear();
+const brandCore=document.querySelector('.art-core');
+if(brandCore){const image=document.createElement('img');image.src='marketscope-icon.png';image.alt='MarketScope';image.className='brand-symbol';image.width=68;image.height=68;brandCore.replaceChildren(image);}
 document.querySelectorAll('[data-market]').forEach(el=>el.addEventListener('click',()=>{selectedMarket=el.dataset.market;page=1;render();if(el.classList.contains('market-link'))document.querySelector('#screener').scrollIntoView({behavior:'smooth'});}));
 document.querySelector('#search').addEventListener('input',()=>{page=1;render();});
 document.querySelector('#signal-filter').addEventListener('change',()=>{page=1;render();});

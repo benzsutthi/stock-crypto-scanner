@@ -10,11 +10,14 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="screener.css">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="index-overview.css">
+  <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar">
-      <a class="brand" href="#"><span class="brand-mark">M</span><span>Market<span class="brand-light">Scope</span><small>MARKET INTELLIGENCE</small></span></a>
+      <a class="brand logo-brand" href="#" aria-label="MarketScope ภาพรวมตลาด"><img src="marketscope-logo.png" alt="MarketScope — Stock · Crypto · Screener" width="1000" height="275"></a>
       <div class="side-label">WORKSPACE</div>
       <a class="nav active" href="#"><span>▦</span> ภาพรวมตลาด</a>
       <a class="nav" href="#screener"><span>⌕</span> Stock screener</a>
@@ -34,7 +37,7 @@
       <section class="welcome"><div><div class="eyebrow">THAILAND · UNITED STATES · DIGITAL ASSETS</div><h1>จับจังหวะตลาด<br><span>ก่อนใคร</span></h1><p>คัดกรองหุ้นไทย หุ้นสหรัฐ และคริปโทชั้นนำ<br class="desktop-break"> พร้อมดูแนวโน้มและสัญญาณสำคัญในหน้าเดียว</p><a class="primary-btn" href="#screener">สำรวจตลาด <span>↘</span></a></div><div class="welcome-art"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="art-core">MS<span>⌁</span></div><div class="float-tag tag-set"><b>SET</b><small>THAILAND</small></div><div class="float-tag tag-btc"><b>₿</b><small>CRYPTO</small></div><div class="float-tag tag-us"><b>NASDAQ</b><small>UNITED STATES</small></div><svg class="chart-art" viewBox="0 0 500 200" preserveAspectRatio="none"><path d="M0 165 C55 150 55 180 95 140 S145 165 185 118 230 138 265 90 300 125 338 70 370 104 408 55 450 75 500 15" fill="none" stroke="#a8f05f" stroke-width="3"/><path d="M0 165 C55 150 55 180 95 140 S145 165 185 118 230 138 265 90 300 125 338 70 370 104 408 55 450 75 500 15 L500 200 L0 200Z" fill="url(#g)" opacity=".16"/><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a8f05f"/><stop offset="1" stop-color="#a8f05f" stop-opacity="0"/></linearGradient></defs></svg></div></section>
 
       <section class="market-strip"><div class="strip-heading"><span class="eyebrow">MARKET PULSE</span><span class="updated"><i></i> อัปเดตล่าสุด</span></div><div class="pulse-grid">
-        <article class="pulse-card"><div class="pulse-top"><span class="market-icon set-icon">SET</span><span class="pulse-name">SET INDEX<small>ตลาดหุ้นไทย</small></span><span class="pulse-change">ติดตาม</span></div><div class="pulse-value pending-market">ยังไม่เชื่อมข้อมูล <small>ราคา</small></div></article>
+        <article class="pulse-card set-overview"><div class="pulse-top"><span class="market-icon set-icon">SET</span><span class="pulse-name">SET INDEX<small>ภาพรวมตลาดหุ้นไทย</small></span><span class="pulse-change" id="set-change">กำลังโหลด</span></div><div class="pulse-value" id="set-value">— <small>จุด</small></div><svg id="set-chart" class="set-chart" viewBox="0 0 200 40" preserveAspectRatio="none" role="img" aria-label="กราฟ SET Index"><polyline id="set-chart-line" points=""/></svg><p class="set-chart-caption" id="set-chart-caption"></p><dl class="set-details"><div><dt>เปิด</dt><dd id="set-open">—</dd></div><div><dt>ปิดก่อนหน้า</dt><dd id="set-previous">—</dd></div><div><dt>สูงสุด</dt><dd id="set-high">—</dd></div><div><dt>ต่ำสุด</dt><dd id="set-low">—</dd></div></dl><p id="set-source" class="set-source">กำลังดึงข้อมูล Yahoo Finance (^SET.BK)</p></article>
         <article class="pulse-card"><div class="pulse-top"><span class="market-icon sp-icon">S&amp;P</span><span class="pulse-name">S&amp;P 500<small>ตลาดหุ้นสหรัฐ</small></span><span class="pulse-change">ติดตาม</span></div><div class="pulse-value pending-market">ยังไม่เชื่อมข้อมูล <small>ราคา</small></div></article>
         <article class="pulse-card"><div class="pulse-top"><span class="market-icon btc-icon">₿</span><span class="pulse-name">BITCOIN<small>BTC / USD</small></span><span class="pulse-change positive" id="btc-change">กำลังโหลด</span></div><div class="pulse-value" id="btc-price">— <small>USD</small></div><div class="mini-chart purple-chart"><svg viewBox="0 0 200 40" preserveAspectRatio="none"><path d="M0 28 Q15 18 30 26 T58 22 T85 25 T112 10 T140 17 T166 8 T200 5"/></svg></div></article>
       </div></section>
@@ -55,6 +58,7 @@
     </section>
   </dialog>
   <script src="updates.js"></script>
+  <script src="index-overview.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -49,12 +49,14 @@ jobs:
           mkdir -p _site
           python -m pip install --disable-pip-version-check -r stock-crypto-scanner/requirements.txt
           python -m unittest discover -s stock-crypto-scanner -p 'test_*.py'
-          (cd stock-crypto-scanner && node test_filters.cjs && node test_crypto_loader.cjs && node test_average_cost.cjs && node test_early_cycle.cjs && node test_updates.cjs)
+          (cd stock-crypto-scanner && node test_filters.cjs && node test_crypto_loader.cjs && node test_average_cost.cjs && node test_early_cycle.cjs && node test_updates.cjs && node test_index_overview.cjs)
           python stock-crypto-scanner/build_market_data.py --output _site/data/stocks.json --previous .market-cache/stocks.json
           python stock-crypto-scanner/build_crypto_data.py --output _site/data/crypto.json --previous .market-cache/crypto.json
+          python stock-crypto-scanner/build_indices.py --output _site/data/indices.json --previous .market-cache/indices.json
           cp stock-crypto-scanner/index.html stock-crypto-scanner/style.css stock-crypto-scanner/screener.css stock-crypto-scanner/app.js _site/
           cp stock-crypto-scanner/updates.js _site/
           cp stock-crypto-scanner/average-cost.html stock-crypto-scanner/average-cost.css stock-crypto-scanner/average-cost.js _site/
+          cp stock-crypto-scanner/brand.css stock-crypto-scanner/index-overview.css stock-crypto-scanner/index-overview.js stock-crypto-scanner/marketscope-logo.png stock-crypto-scanner/marketscope-icon.png stock-crypto-scanner/favicon.png _site/
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -65,7 +67,7 @@ jobs:
       - name: Save successful market snapshots
         run: |
           mkdir -p .market-cache
-          cp _site/data/stocks.json _site/data/crypto.json .market-cache/
+          cp _site/data/stocks.json _site/data/crypto.json _site/data/indices.json .market-cache/
       - uses: actions/cache/save@v4
         with:
           path: .market-cache

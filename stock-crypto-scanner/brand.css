@@ -1,0 +1,1 @@
+.logo-brand{display:flex;width:100%;max-width:220px;min-height:58px;align-items:center}.logo-brand img{display:block;width:100%;height:auto;object-fit:contain}.art-core .brand-symbol{display:block;width:68px;height:68px;object-fit:contain;padding:4px}@media(max-width:720px){.sidebar .logo-brand{max-width:min(180px,42vw);min-height:40px}.sidebar .logo-brand img{width:100%}}
