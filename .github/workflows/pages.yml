@@ -7,9 +7,7 @@ on:
       - 'stock-crypto-scanner/**'
       - '.github/workflows/pages.yml'
   schedule:
-    - cron: '30 23 * * 1-5'
-    - cron: '0 11 * * 1-5'
-    - cron: '17 */4 * * *'
+    - cron: '17,47 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -19,7 +17,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -34,6 +32,14 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: stock-crypto-scanner/requirements.txt
+      - name: Restore market history cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .market-cache
+          key: market-history-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: market-history-v1-
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
@@ -42,9 +48,10 @@ jobs:
         run: |
           mkdir -p _site
           python -m pip install --disable-pip-version-check -r stock-crypto-scanner/requirements.txt
-          python stock-crypto-scanner/build_market_data.py --output _site/data/stocks.json
-          python stock-crypto-scanner/build_crypto_data.py --output _site/data/crypto.json
+          python stock-crypto-scanner/build_market_data.py --output _site/data/stocks.json --previous .market-cache/stocks.json
+          python stock-crypto-scanner/build_crypto_data.py --output _site/data/crypto.json --previous .market-cache/crypto.json
           cp stock-crypto-scanner/index.html stock-crypto-scanner/style.css stock-crypto-scanner/screener.css stock-crypto-scanner/app.js _site/
+          cp stock-crypto-scanner/updates.js _site/
           cp stock-crypto-scanner/average-cost.html stock-crypto-scanner/average-cost.css stock-crypto-scanner/average-cost.js _site/
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
@@ -53,3 +60,11 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Save successful market snapshots
+        run: |
+          mkdir -p .market-cache
+          cp _site/data/stocks.json _site/data/crypto.json .market-cache/
+      - uses: actions/cache/save@v4
+        with:
+          path: .market-cache
+          key: market-history-v1-${{ github.run_id }}-${{ github.run_attempt }}
