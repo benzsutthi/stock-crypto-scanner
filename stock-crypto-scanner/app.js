@@ -160,8 +160,6 @@ async function loadCrypto(){
     cryptoAssets=snapshot.assets.map(a=>({...a,snapshotAt:snapshot.generatedAt,updateError:a.updateError||a.historyUpdateError||snapshot.updateError}));
     globalThis.MarketUpdates?.update('Crypto',snapshot,cryptoAssets);
     document.querySelector('.status small').textContent=`Crypto: ${snapshot.source} snapshot`;
-    const btc=cryptoAssets.find(c=>c.symbol==='BTC');
-    if(btc){document.querySelector('#btc-price').innerHTML=`${money(btc.price)} <small>USD</small>`;document.querySelector('#btc-change').textContent=Number.isFinite(btc.change)?`${btc.change>=0?'+':''}${btc.change.toFixed(2)}%`:'—';document.querySelector('#btc-change').className=`pulse-change ${btc.change>=0?'positive':'change-down'}`;}
     count.textContent=cryptoAssets.length;
     const generated=new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Bangkok'}).format(new Date(snapshot.generatedAt));
     const analyzed=cryptoAssets.filter(a=>Number.isFinite(a.rsi)).length;
@@ -174,7 +172,6 @@ async function loadCrypto(){
     globalThis.MarketUpdates?.failed('Crypto');
     count.textContent=cryptoAssets.length;
     status.textContent=cryptoAssets.length?'อัปเดตคริปโทไม่สำเร็จ · แสดงข้อมูลที่โหลดสำเร็จครั้งก่อน (ดูวันแท่งปิดรายตัว)':'ยังโหลดข้อมูลคริปโทไม่ได้ กรุณาลองรีเฟรช';
-    if(!cryptoAssets.length)document.querySelector('#btc-change').textContent='ข้อมูลไม่พร้อม';
   }
   render();
 }
