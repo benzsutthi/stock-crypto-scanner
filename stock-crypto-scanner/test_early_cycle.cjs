@@ -1,0 +1,20 @@
+const fs=require('node:fs');
+const vm=require('node:vm');
+const assert=require('node:assert/strict');
+const code=fs.readFileSync('app.js','utf8');
+const context=vm.createContext({Date,Intl});
+vm.runInContext(code.slice(code.indexOf('function earlyFresh'),code.indexOf('function matchesFilters')),context);
+const now=new Date('2026-10-01T12:00:00Z');
+const crypto={market:'Crypto',earlyCycle:true,priceDate:'2026-09-30',snapshotAt:'2026-10-01T11:00:00Z',quoteUpdatedAt:'2026-10-01T11:00:00Z'};
+assert.equal(context.earlyFresh(crypto,now),true);
+assert.equal(context.earlyFresh({...crypto,priceDate:'2026-09-29'},now),false);
+assert.equal(context.earlyFresh({...crypto,priceDate:'2026-10-01'},now),false);
+assert.equal(context.earlyFresh({...crypto,snapshotAt:'2026-10-01T08:00:00Z'},now),false);
+assert.equal(context.earlyFresh({...crypto,updateError:'cache'},now),false);
+assert.equal(context.earlyFresh({...crypto,historyStale:true},now),false);
+assert.equal(context.earlyFresh({...crypto,market:'US'},now),true); // US still before close
+assert.equal(context.earlyFresh({...crypto,market:'Thai',priceDate:'2026-10-01'},now),true);
+assert.equal(context.earlyFresh({...crypto,snapshotAt:'invalid'},now),false);
+assert.equal(context.earlyFresh({...crypto,quoteUpdatedAt:'2026-10-01T09:00:00Z'},now),false);
+assert.equal(context.earlyFresh({market:'US',earlyCycle:true,priceDate:'2026-10-02',snapshotAt:'2026-10-04T11:00:00Z'},new Date('2026-10-04T12:00:00Z')),true);
+console.log('Early-cycle freshness: UTC, market zones, weekends, stale cache and invalid timestamps passed');

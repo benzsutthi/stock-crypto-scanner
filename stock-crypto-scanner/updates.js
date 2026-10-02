@@ -34,10 +34,10 @@ if(typeof window!=='undefined'&&typeof document!=='undefined'){
       const generated=state?.snapshot?.generatedAt;
       const age=generated?(Date.now()-Date.parse(generated))/60000:Infinity;
       const marketInfo=state?.snapshot?.marketRefresh?.[market];
-      const problem=state?.error||state?.snapshot?.keptPreviousSnapshot||(marketInfo?(marketInfo.failedHistory||marketInfo.failedQuotes):state?.snapshot?.updateError)||assetList.some(a=>a.historyUpdateError);
+      const problem=state?.error||state?.snapshot?.keptPreviousSnapshot||(marketInfo?(marketInfo.failedHistory||marketInfo.failedQuotes):state?.snapshot?.updateError)||assetList.some(a=>a.historyUpdateError||a.historyStale||a.quoteStale||a.historyUnavailable);
       const label=!state?'รอข้อมูล':state.error&&!assetList.length?'โหลดข้อมูลไม่สำเร็จ':problem?'ใช้ข้อมูลเดิม / บางส่วนไม่พร้อม':age>90?'ชุดข้อมูลเกิน 90 นาที':'โหลดชุดข้อมูลสำเร็จ';
       const dates=assetList.map(a=>a.priceDate).filter(Boolean).sort();
-      const quoted=assetList.map(a=>a.quoteAt).filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b));
+      const quoted=assetList.map(a=>a.quoteUpdatedAt||a.quoteAt).filter(Boolean).sort((a,b)=>Date.parse(a)-Date.parse(b));
       const history=dates.length?(dates[0]===dates.at(-1)?dates[0]:`${dates[0]} – ${dates.at(-1)}`):'—';
       const card=document.createElement('article');card.className='update-card';
       const heading=document.createElement('h3');heading.textContent=title;card.append(heading);

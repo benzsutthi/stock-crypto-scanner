@@ -1,7 +1,7 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import pandas as pd
-from build_crypto_data import confirmed, enrich
+from build_crypto_data import confirmed, enrich, apply_quote_freshness
 
 
 class CryptoDataTest(unittest.TestCase):
@@ -29,6 +29,30 @@ class CryptoDataTest(unittest.TestCase):
         self.assertIsNone(asset['rsi'])
         self.assertEqual(asset['signals'],[])
         self.assertTrue(asset['historyUnavailable'])
+
+    def test_stale_history_and_quote_are_not_early_candidates(self):
+        index = pd.date_range(end=pd.Timestamp(datetime.now(timezone.utc)).normalize()-pd.Timedelta(days=2), periods=60)
+        frame = pd.DataFrame({'Close':[100.]*60, 'High':[101.]*60,
+                              'Low':[99.]*60, 'Volume':[100.]*60}, index=index)
+        asset = enrich({'symbol':'BTC','price':100.,'change':0.}, frame, 'test')
+        self.assertTrue(asset['historyUnavailable'])
+        self.assertEqual(asset['signals'], [])
+        frame.index += pd.Timedelta(days=1)
+        asset = enrich({'symbol':'BTC','price':100.,'change':0.,'quoteUpdatedAt':'invalid'}, frame, 'test')
+        self.assertTrue(asset['quoteStale'])
+        self.assertFalse(asset['earlyCycle'])
+
+    def test_cached_history_rechecks_new_quote_freshness(self):
+        now = datetime.now(timezone.utc)
+        asset = dict(priceDate=(now.date()-timedelta(days=1)).isoformat(),
+                     quoteUpdatedAt=(now-timedelta(hours=3)).isoformat(),
+                     earlyConditions={'tightBase':True, 'recentTurn':True}, signals=[])
+        self.assertFalse(apply_quote_freshness(asset)['earlyCycle'])
+        asset['quoteUpdatedAt'] = now.isoformat()
+        self.assertTrue(apply_quote_freshness(asset)['earlyCycle'])
+        self.assertFalse(asset['quoteStale'])
+        asset['historyUpdateError'] = 'retained data'
+        self.assertFalse(apply_quote_freshness(asset)['earlyCycle'])
 
 
 if __name__ == '__main__':

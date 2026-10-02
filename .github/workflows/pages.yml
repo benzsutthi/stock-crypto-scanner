@@ -48,6 +48,8 @@ jobs:
         run: |
           mkdir -p _site
           python -m pip install --disable-pip-version-check -r stock-crypto-scanner/requirements.txt
+          python -m unittest discover -s stock-crypto-scanner -p 'test_*.py'
+          (cd stock-crypto-scanner && node test_filters.cjs && node test_crypto_loader.cjs && node test_average_cost.cjs && node test_early_cycle.cjs && node test_updates.cjs)
           python stock-crypto-scanner/build_market_data.py --output _site/data/stocks.json --previous .market-cache/stocks.json
           python stock-crypto-scanner/build_crypto_data.py --output _site/data/crypto.json --previous .market-cache/crypto.json
           cp stock-crypto-scanner/index.html stock-crypto-scanner/style.css stock-crypto-scanner/screener.css stock-crypto-scanner/app.js _site/
