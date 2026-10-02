@@ -31,6 +31,8 @@ class RefreshPolicyTest(unittest.TestCase):
         result=overlay_quote(asset,frame)
         self.assertEqual(result['change'],10.)
         self.assertEqual(result['rsi'],60.)
+        self.assertEqual(result['priceBasis'],'adjusted-intraday')
+        self.assertEqual(result['historySource'],'Yahoo Finance adjusted daily close')
         self.assertEqual(result['signals'],asset['signals'])
         frame.index=pd.to_datetime(['2026-10-01T15:00:00+07:00'])
         self.assertEqual(overlay_quote(asset,frame)['change'],15.79)

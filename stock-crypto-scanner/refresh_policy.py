@@ -64,4 +64,6 @@ def overlay_quote(asset, frame):
     if price <= 0 or baseline <= 0:
         return asset
     return dict(asset, price=price, change=round((price / baseline - 1)*100, 2),
-                quoteAt=last.isoformat(), quoteDate=quote_day, quoteType='15m')
+                quoteAt=last.isoformat(), quoteDate=quote_day, quoteType='15m',
+                historySource=asset.get('historySource') or 'Yahoo Finance adjusted daily close',
+                priceSource='Yahoo Finance adjusted 15-minute reference', priceBasis='adjusted-intraday')
