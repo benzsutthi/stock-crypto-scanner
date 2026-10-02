@@ -20,6 +20,7 @@
       <a class="nav" href="#screener"><span>⌕</span> Stock screener</a>
       <a class="nav" href="#screener" data-market="Crypto"><span>◈</span> Crypto top 100</a>
       <a class="nav calculator-link" href="average-cost.html"><span>∑</span> CostPilot · วางแผนต้นทุน</a>
+      <button class="nav status-menu" id="open-update-status" type="button" aria-haspopup="dialog" aria-controls="update-dialog"><span>◷</span> สถานะข้อมูล</button>
       <div class="side-label markets-label">ตลาดที่ติดตาม</div>
       <button class="market-link selected" data-market="All"><i class="dot all-dot"></i> ทุกตลาด <span>ทั้งหมด</span></button>
       <button class="market-link" data-market="Thai"><i class="dot thai-dot"></i> หุ้นไทย <span>SET</span></button>
@@ -29,7 +30,7 @@
     </aside>
 
     <main class="main">
-      <header class="topbar"><div class="breadcrumb">ตลาดการเงิน <span>/</span> <b>ภาพรวมตลาด</b></div><div class="top-right"><span class="live-pill"><i></i> CRYPTO DATA</span><span class="date" id="today"></span><button class="avatar" aria-label="โปรไฟล์">U</button></div></header>
+      <header class="topbar"><div class="breadcrumb">ตลาดการเงิน <span>/</span> <b>ภาพรวมตลาด</b></div><div class="top-right"><button class="refresh-btn mobile-status-trigger" id="open-update-status-mobile" type="button" aria-haspopup="dialog" aria-controls="update-dialog">◷ สถานะข้อมูล</button><span class="live-pill"><i></i> CRYPTO DATA</span><span class="date" id="today"></span><button class="avatar" aria-label="โปรไฟล์">U</button></div></header>
       <section class="welcome"><div><div class="eyebrow">THAILAND · UNITED STATES · DIGITAL ASSETS</div><h1>จับจังหวะตลาด<br><span>ก่อนใคร</span></h1><p>คัดกรองหุ้นไทย หุ้นสหรัฐ และคริปโทชั้นนำ<br class="desktop-break"> พร้อมดูแนวโน้มและสัญญาณสำคัญในหน้าเดียว</p><a class="primary-btn" href="#screener">สำรวจตลาด <span>↘</span></a></div><div class="welcome-art"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="art-core">MS<span>⌁</span></div><div class="float-tag tag-set"><b>SET</b><small>THAILAND</small></div><div class="float-tag tag-btc"><b>₿</b><small>CRYPTO</small></div><div class="float-tag tag-us"><b>NASDAQ</b><small>UNITED STATES</small></div><svg class="chart-art" viewBox="0 0 500 200" preserveAspectRatio="none"><path d="M0 165 C55 150 55 180 95 140 S145 165 185 118 230 138 265 90 300 125 338 70 370 104 408 55 450 75 500 15" fill="none" stroke="#a8f05f" stroke-width="3"/><path d="M0 165 C55 150 55 180 95 140 S145 165 185 118 230 138 265 90 300 125 338 70 370 104 408 55 450 75 500 15 L500 200 L0 200Z" fill="url(#g)" opacity=".16"/><defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#a8f05f"/><stop offset="1" stop-color="#a8f05f" stop-opacity="0"/></linearGradient></defs></svg></div></section>
 
       <section class="market-strip"><div class="strip-heading"><span class="eyebrow">MARKET PULSE</span><span class="updated"><i></i> อัปเดตล่าสุด</span></div><div class="pulse-grid">
@@ -38,7 +39,6 @@
         <article class="pulse-card"><div class="pulse-top"><span class="market-icon btc-icon">₿</span><span class="pulse-name">BITCOIN<small>BTC / USD</small></span><span class="pulse-change positive" id="btc-change">กำลังโหลด</span></div><div class="pulse-value" id="btc-price">— <small>USD</small></div><div class="mini-chart purple-chart"><svg viewBox="0 0 200 40" preserveAspectRatio="none"><path d="M0 28 Q15 18 30 26 T58 22 T85 25 T112 10 T140 17 T166 8 T200 5"/></svg></div></article>
       </div></section>
 
-      <section class="update-panel" aria-label="สถานะและรอบอัปเดตข้อมูล"><div class="update-panel-heading"><h2>การอัปเดตข้อมูล</h2><label><input id="auto-refresh" type="checkbox" checked> ตรวจข้อมูลใหม่อัตโนมัติ</label></div><p id="browser-refresh-status" role="status"></p><div id="market-update-cards" class="update-cards"></div><p id="next-publish"></p><small>เวลาสร้างชุดข้อมูล ≠ เวลาราคา: ราคาอาจล่าช้าจากผู้ให้บริการ สัญญาณใช้แท่งปิดที่แสดงวันที่รายตัว · ปุ่มรีเฟรชอ่านชุดล่าสุดบนเว็บ ไม่ได้สั่งซื้อหรือเรียก workflow ใหม่</small></section>
       <section class="screener" id="screener"><div class="section-title"><div><span class="eyebrow">DISCOVER OPPORTUNITIES</span><h2>ตลาดที่น่าจับตา <span class="title-dot">.</span></h2></div><button class="refresh-btn" id="refresh"><span>↻</span> รีเฟรชข้อมูล</button></div>
         <div class="stats-row"><div class="stat-card"><div class="stat-icon">◫</div><div><small>สินทรัพย์ในรายการ</small><b id="asset-count">—</b></div></div><div class="stat-card"><div class="stat-icon green">↗</div><div><small>ปรับตัวขึ้น</small><b id="up-count">—</b></div></div><div class="stat-card"><div class="stat-icon violet">◈</div><div><small>เหรียญใน Crypto Top 100</small><b id="crypto-count">กำลังโหลด</b></div></div><div class="stat-card"><div class="stat-icon orange">◷</div><div><small>ตลาดที่ติดตาม</small><b>3 ตลาด</b></div></div></div>
         <div class="signals-guide"><span class="guide-title">สัญญาณที่ใช้คัดกรอง</span><span class="guide-chip breakout-chip">20D Breakout</span><span class="guide-chip rsi-chip">RSI 55–70 โมเมนตัม · &gt;70 ร้อนแรง</span><span class="guide-chip volume-chip">Volume &gt; 1.5×</span><span class="guide-chip macd-chip">MACD Golden Cross</span><span class="guide-note">เรียงตามคะแนนสัญญาณ · RSI สูงอาจหมายถึงภาวะซื้อมากเกินไป</span></div>
@@ -47,6 +47,13 @@
       <footer>© <span id="year">2026</span> MarketScope <span>ข้อมูลเพื่อประกอบการศึกษาเท่านั้น · โปรดศึกษาความเสี่ยงก่อนลงทุน</span></footer>
     </main>
   </div>
+  <dialog id="update-dialog" class="update-dialog" aria-labelledby="update-dialog-title">
+    <section class="update-panel" aria-label="สถานะและรอบอัปเดตข้อมูล">
+      <div class="update-panel-heading"><h2 id="update-dialog-title">การอัปเดตข้อมูล</h2><label><input id="auto-refresh" type="checkbox" checked> ตรวจข้อมูลใหม่อัตโนมัติ</label><button id="close-update-status" class="refresh-btn" type="button" aria-label="ปิดสถานะข้อมูล">ปิด ×</button></div>
+      <p id="browser-refresh-status" role="status"></p><div id="market-update-cards" class="update-cards"></div><p id="next-publish"></p>
+      <small>เวลาสร้างชุดข้อมูล ≠ เวลาราคา: ราคาอาจล่าช้าจากผู้ให้บริการ สัญญาณใช้แท่งปิดที่แสดงวันที่รายตัว · ปุ่มรีเฟรชอ่านชุดล่าสุดบนเว็บ ไม่ได้สั่งซื้อหรือเรียก workflow ใหม่</small>
+    </section>
+  </dialog>
   <script src="updates.js"></script>
   <script src="app.js"></script>
 </body>

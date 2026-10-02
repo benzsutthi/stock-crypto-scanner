@@ -64,4 +64,8 @@ if(typeof window!=='undefined'&&typeof document!=='undefined'){
     checked(){nextCheck=Date.now()+300000;tick();},
     start(refresh){runRefresh=refresh;renderStatus();tick();setInterval(tick,15000);setInterval(renderStatus,60000);document.addEventListener('visibilitychange',tick);window.addEventListener('focus',tick);window.addEventListener('online',tick);}
   };
+  const dialog=document.querySelector('#update-dialog');
+  for(const id of ['open-update-status','open-update-status-mobile'])document.querySelector('#'+id)?.addEventListener('click',()=>{renderStatus();tick();if(dialog&&!dialog.open)dialog.showModal();});
+  document.querySelector('#close-update-status')?.addEventListener('click',()=>dialog?.close());
+  dialog?.addEventListener('click',event=>{if(event.target===dialog)dialog.close();});
 }
