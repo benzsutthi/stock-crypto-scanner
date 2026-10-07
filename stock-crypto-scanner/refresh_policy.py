@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-ANALYSIS_VERSION = 'confirmed-early-v1'
+ANALYSIS_VERSION = 'confirmed-quality-rs-v1'
 
 
 def read_previous(path):

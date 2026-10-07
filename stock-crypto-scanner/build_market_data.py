@@ -14,6 +14,8 @@ from technicals import analyze
 from zoneinfo import ZoneInfo
 from refresh_policy import ANALYSIS_VERSION, read_previous, stock_session, market_open, reusable, overlay_quote
 from market_history import clean_history
+from quality_metrics import return_history, attach_quality
+from benchmarks import fetch_benchmark
 
 
 def confirmed_stock(frame, market, now=None):
@@ -56,6 +58,8 @@ def build_snapshot(output: Path, previous_path=None) -> dict:
     cached = {(a['market'], a['symbol']): a for a in previous.get('assets', [])}
     now_utc = datetime.now(timezone.utc)
     targets = {market: stock_session(market, now_utc) for market in ('Thai', 'US')}
+    benchmarks = {market:fetch_benchmark(symbol,name,market,previous.get('benchmarks',{}).get(market))
+                  for market,symbol,name in [('Thai','^SET.BK','SET'),('US','^GSPC','S&P 500')]}
     thai_set = set(THAI_STOCKS)
     needed = [s for s in symbols if not reusable(cached.get(('Thai' if s in thai_set else 'US', s.removesuffix('.BK'))), targets['Thai' if s in thai_set else 'US'], now_utc) or cached.get(('Thai' if s in thai_set else 'US', s.removesuffix('.BK')), {}).get('updateError') or cached.get(('Thai' if s in thai_set else 'US', s.removesuffix('.BK')), {}).get('analysisVersion') != ANALYSIS_VERSION]
     print(f"Refreshing {len(needed)} daily histories; reusing {len(symbols)-len(needed)}.")
@@ -142,6 +146,8 @@ def build_snapshot(output: Path, previous_path=None) -> dict:
             "historyStale": stale,
             "priceSource": "Yahoo Finance adjusted daily close",
             "priceBasis": "adjusted-close",
+            "returnHistory": return_history(frame),
+            "liquidityCurrency": "THB" if market == 'Thai' else 'USD',
         })
 
     # A partial provider outage must not silently remove previously listed stocks.
@@ -164,6 +170,8 @@ def build_snapshot(output: Path, previous_path=None) -> dict:
 
     if not assets or not all(any(asset['market'] == market for asset in assets) for market in ('US', 'Thai')):
         raise RuntimeError("No stock data was returned by Yahoo Finance; refusing to publish an empty snapshot.")
+
+    assets = [attach_quality(asset,benchmarks[asset['market']]) for asset in assets]
 
     active = [a for a in assets if market_open(a['market'], now_utc) and 'previousClose' in a]
     quote_tickers = [a['symbol']+'.BK' if a['market']=='Thai' else a['symbol'] for a in active]
@@ -198,11 +206,13 @@ def build_snapshot(output: Path, previous_path=None) -> dict:
         "quoteDescription": "Yahoo Finance 15-minute bars during market hours; may be delayed. Signals use confirmed daily bars.",
         "updateError": "Some daily histories could not be refreshed; retaining previous data where available." if failed else None,
         "staleSymbols": [a['symbol'] for a in assets if a.get('historyStale')],
+        "benchmarks": benchmarks,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(snapshot, ensure_ascii=False, separators=(",", ":"), allow_nan=False), encoding="utf-8")
     print(f"Saved {len(assets)} stocks ({snapshot['markets']['US']} US, {snapshot['markets']['Thai']} Thai); {len(failed)} unavailable.")
     print(f"Stocks with 15-minute reference quotes: {sum(a.get('quoteType')=='15m' for a in assets)}; missing quote responses: {len(missing_quotes)}.")
+    print(f"Quality: RS20 available {sum(a.get('relativeStrength20') is not None for a in assets)}, RS60 available {sum(a.get('relativeStrength60') is not None for a in assets)}, liquid {sum(a.get('liquidityPassed',False) for a in assets)}, strong close {sum(a.get('strongClose',False) for a in assets)}.")
     if failed:
         print("Unavailable symbols: " + ", ".join(failed))
     return snapshot

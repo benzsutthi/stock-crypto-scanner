@@ -23,7 +23,12 @@ function row(asset) {
   const isUp=asset.change!==null&&asset.change>=0;
   const changeText=!Number.isFinite(asset.change)?'—':`${isUp?'+':''}${asset.change.toFixed(2)}%`;
   const badge=asset.market==='Thai'?'SET':asset.market==='US'?'US STOCK':'CRYPTO';
-  const signals=asset.signals||[];
+  const signals=(asset.signals||[]).filter(s=>!['relative-strength','liquidity','strong-close'].includes(s.type)||qualityFresh(asset));
+  const customCash=document.querySelector('#liquidity-min')?.value;
+  if(customCash!==undefined&&customCash!==''&&qualityFresh(asset)&&Number.isFinite(asset.avgTurnover20)&&['THB','USD','USDT'].includes(asset.liquidityCurrency)&&asset.avgTurnover20>=Number(customCash)*1000000){
+    for(let i=signals.length-1;i>=0;i--)if(signals[i].type==='liquidity')signals.splice(i,1);
+    signals.push({type:'liquidity',label:`Liquidity ≥${Number(customCash)}M ${asset.liquidityCurrency}`,description:'ผ่านมูลค่าเฉลี่ย 20 แท่งปิดขั้นต่ำที่กำหนดเอง'});
+  }
   const rsiText=Number.isFinite(asset.rsi)?asset.rsi.toFixed(1):'—';
   const rsiClass=asset.rsi>=70?'rsi-hot':asset.rsi>=55?'rsi-strong':Number.isFinite(asset.rsi)&&asset.rsi<30?'rsi-low':'';
   const badges=signals.length?signals.map(s=>`<span class="signal-badge ${s.type}" title="${esc(s.description)}">${s.type==='breakout'?'↗ ':s.type==='volume'?'▴ ':s.type==='macd'?'✦ ':s.type==='rsi-high'?'! ':''}${esc(s.label)}</span>`).join(' '):`<span class="signal-empty">${crypto?(asset.historyUnavailable?'ข้อมูลกราฟไม่พร้อม':historyPending?'กำลังวิเคราะห์':'ยังไม่พบสัญญาณ'):asset.hasMarketData?'ยังไม่พบสัญญาณ':'รอข้อมูลตลาด'}</span>`;
@@ -31,16 +36,15 @@ function row(asset) {
   const metadata=asset.priceDate?`<small class="signal-empty" title="${esc(asset.historySource||asset.priceSource||'แท่งปิดรายวัน')}">สัญญาณปิด ${esc(asset.priceDate)}${asset.historyStale||asset.updateError||age>(crypto?1:4)?' · ข้อมูลเก่า/ล่าช้า':''}${Number.isFinite(asset.techPrice)?` · ราคาวิเคราะห์ ${money(asset.techPrice,asset.currency||'USD')}`:''}</small>`:'';
   const quoteTime=new Date(asset.quoteUpdatedAt||asset.quoteAt||'');
   const quoteLabel=(Number.isFinite(quoteTime.getTime())?new Intl.DateTimeFormat('th-TH',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Bangkok'}).format(quoteTime):asset.quoteDate||'')+(asset.quoteStale?' · ราคาล่าช้า':'');
-  return `<tr><td><div class="asset-cell"><button class="watch-star" data-watch="${esc(assetKey(asset))}" aria-label="ติดตาม ${esc(symbol)}" aria-pressed="${watchlist.has(assetKey(asset))}">${watchlist.has(assetKey(asset))?'★':'☆'}</button><span class="coin-logo ${type}">${esc(logo)}</span><span><span class="asset-name">${esc(asset.name)}</span><span class="asset-symbol">${esc(symbol)}${asset.sector?` · ${esc(asset.sector)}`:''}</span>${metadata}</span></div></td><td><span class="market-badge ${type}">${badge}</span></td><td class="align-right price">${price}<small class="signal-empty metric-detail">${asset.quoteType==='15m'?'แท่ง 15m · ':crypto?'ราคาอ้างอิง · ':'ปิดรายวัน · '}${esc(quoteLabel)}</small></td><td class="align-right ${asset.change===null?'':isUp?'change-up':'change-down'}">${changeText}</td><td class="align-right ${rsiClass}">${rsiText}</td><td class="signals-cell">${badges}${asset.score?`<span class="score-pill">${asset.score} pts</span>`:''}<small class="signal-empty metric-detail">Volume ${Number.isFinite(asset.volumeRatio)?asset.volumeRatio.toFixed(2)+'×':'—'} · ระยะจาก High20 ${Number.isFinite(asset.breakoutDistance)?asset.breakoutDistance.toFixed(2)+'%':'—'} (แท่งปิด)</small></td></tr>`;
+  const rs=n=>Number.isFinite(n)?`${n>=0?'+':''}${n.toFixed(2)} pp`:'—';
+  const turnover=Number.isFinite(asset.avgTurnover20)&&asset.liquidityCurrency?`${asset.liquidityBasis?.startsWith('estimated')?'≈':''}${new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(asset.avgTurnover20)} ${esc(asset.liquidityCurrency)}`:'—';
+  const quality=`<small class="signal-empty metric-detail" title="${esc(asset.rsSource||'ข้อมูล benchmark ไม่ครบ')}">RS20 ${rs(asset.relativeStrength20)} · RS60 ${rs(asset.relativeStrength60)} vs ${esc(asset.rsBenchmark||'—')}</small><small class="signal-empty metric-detail" title="${esc(asset.liquidityBasis||'')}">มูลค่าเฉลี่ย20D ${turnover} · ปิดในแท่ง ${Number.isFinite(asset.closeLocation)?(asset.closeLocation*100).toFixed(0)+'%':'—'}</small>`;
+  return `<tr><td><div class="asset-cell"><button class="watch-star" data-watch="${esc(assetKey(asset))}" aria-label="ติดตาม ${esc(symbol)}" aria-pressed="${watchlist.has(assetKey(asset))}">${watchlist.has(assetKey(asset))?'★':'☆'}</button><span class="coin-logo ${type}">${esc(logo)}</span><span><span class="asset-name">${esc(asset.name)}</span><span class="asset-symbol">${esc(symbol)}${asset.sector?` · ${esc(asset.sector)}`:''}</span>${metadata}</span></div></td><td><span class="market-badge ${type}">${badge}</span></td><td class="align-right price">${price}<small class="signal-empty metric-detail">${asset.quoteType==='15m'?'แท่ง 15m · ':crypto?'ราคาอ้างอิง · ':'ปิดรายวัน · '}${esc(quoteLabel)}</small></td><td class="align-right ${asset.change===null?'':isUp?'change-up':'change-down'}">${changeText}</td><td class="align-right ${rsiClass}">${rsiText}</td><td class="signals-cell">${badges}${asset.score?`<span class="score-pill">${asset.score} pts</span>`:''}<small class="signal-empty metric-detail">Volume ${Number.isFinite(asset.volumeRatio)?asset.volumeRatio.toFixed(2)+'×':'—'} · ระยะจาก High20 ${Number.isFinite(asset.breakoutDistance)?asset.breakoutDistance.toFixed(2)+'%':'—'} (แท่งปิด)</small>${quality}</td></tr>`;
 }
-function earlyFresh(a, now=new Date()){
-  if(!a.earlyCycle||a.historyUnavailable||a.historyStale||a.quoteStale||a.updateError||!a.priceDate||!a.snapshotAt)return false;
+function qualityFresh(a, now=new Date()){
+  if(a.historyUnavailable||a.historyStale||a.updateError||!a.priceDate||!a.snapshotAt)return false;
   const snapshotAge=now.getTime()-Date.parse(a.snapshotAt);
   if(!Number.isFinite(snapshotAge)||snapshotAge<0||snapshotAge>3*3600000)return false;
-  if(a.market==='Crypto'){
-    const quoteAge=now.getTime()-Date.parse(a.quoteUpdatedAt);
-    if(!Number.isFinite(quoteAge)||quoteAge<0||quoteAge>2*3600000)return false;
-  }
   const zone=a.market==='Thai'?'Asia/Bangkok':a.market==='US'?'America/New_York':'UTC';
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).map(p=>[p.type,p.value]));
   const date=new Date(`${parts.year}-${parts.month}-${parts.day}T00:00:00Z`);
@@ -49,9 +53,15 @@ function earlyFresh(a, now=new Date()){
   if(a.market!=='Crypto')while([0,6].includes(date.getUTCDay()))date.setUTCDate(date.getUTCDate()-1);
   return a.priceDate===date.toISOString().slice(0,10);
 }
+function earlyFresh(a, now=new Date()){
+  if(!a.earlyCycle||a.quoteStale||!qualityFresh(a,now))return false;
+  if(a.market==='Crypto'){const age=now.getTime()-Date.parse(a.quoteUpdatedAt);if(!Number.isFinite(age)||age<0||age>2*3600000)return false;}
+  return true;
+}
 function matchesFilters(a){
   const types=[...document.querySelectorAll('[data-condition]:checked')].map(e=>e.value);
-   const checks=types.map(t=>(a.signals||[]).some(s=>s.type===t));
+   const customLiquidity=document.querySelector('#liquidity-min').value;
+   const checks=types.map(t=>t==='liquidity'&&customLiquidity!==''?qualityFresh(a)&&['THB','USD','USDT'].includes(a.liquidityCurrency)&&Number.isFinite(a.avgTurnover20)&&a.avgTurnover20>=Number(customLiquidity)*1000000:(a.signals||[]).some(s=>s.type===t)&&(!['relative-strength','liquidity','strong-close'].includes(t)||qualityFresh(a)));
    if(types.includes('early-cycle')&&!earlyFresh(a))return false;
   const mode=document.querySelector('#filter-mode').value;
   if(checks.length && !(mode==='and'?checks.every(Boolean):checks.some(Boolean)))return false;
@@ -59,6 +69,12 @@ function matchesFilters(a){
     const raw=document.querySelector('#'+id).value;
     if(raw!==''&&(!Number.isFinite(a[field])||(op==='min'?a[field]<Number(raw):a[field]>Number(raw))))return false;
   }
+  const rsMin=document.querySelector('#rs-min').value;
+  if(rsMin!==''){const field=document.querySelector('#rs-period').value==='60'?'relativeStrength60':'relativeStrength20';if(!qualityFresh(a)||!Number.isFinite(a[field])||a[field]<Number(rsMin))return false;}
+  const cashMin=document.querySelector('#liquidity-min').value;
+  if(cashMin!==''&&(!Number.isFinite(Number(cashMin))||Number(cashMin)<0||!qualityFresh(a)||!['THB','USD','USDT'].includes(a.liquidityCurrency)||!Number.isFinite(a.avgTurnover20)||a.avgTurnover20<Number(cashMin)*1000000))return false;
+  const closeMin=document.querySelector('#close-min').value;
+  if(closeMin!==''&&(!qualityFresh(a)||!Number.isFinite(a.closeLocation)||a.closeLocation*100<Number(closeMin)))return false;
   return !document.querySelector('#watch-only').checked||watchlist.has(assetKey(a));
 }
 function render(){
@@ -67,6 +83,7 @@ function render(){
   const all=[...cryptoAssets,...stocks];
   const filtered=all.filter(a=>(selectedMarket==='All'||a.market===selectedMarket)&&(!q||`${a.symbol} ${a.name} ${a.sector||''}`.toLowerCase().includes(q))&&(signalFilter==='all'||(a.signals||[]).some(s=>s.type===signalFilter))&&matchesFilters(a));
    const earlyMode=signalFilter==='early-cycle'||[...document.querySelectorAll('[data-condition]:checked')].some(e=>e.value==='early-cycle');
+   if(['relative-strength','liquidity','strong-close'].includes(signalFilter))for(let i=filtered.length-1;i>=0;i--)if(!qualityFresh(filtered[i]))filtered.splice(i,1);
    if(earlyMode)for(let i=filtered.length-1;i>=0;i--)if(!earlyFresh(filtered[i]))filtered.splice(i,1);
    filtered.sort((a,b)=>(earlyMode?(b.earlyScore||0)-(a.earlyScore||0):0)||(b.score||0)-(a.score||0)||(b.change??-Infinity)-(a.change??-Infinity));
   const pages=Math.max(1,Math.ceil(filtered.length/pageSize));page=Math.min(page,pages);
@@ -194,6 +211,11 @@ const filters=document.createElement('section');
 filters.className='advanced-filters';
 filters.innerHTML=`<h3>เงื่อนไขคัดกรอง</h3><div class="filter-grid"><label>รูปแบบ <select id="filter-mode"><option value="and">ตรงทุกข้อ (AND)</option><option value="or">อย่างน้อยหนึ่งข้อ (OR)</option></select></label><label>Preset <select id="preset"><option value="">เลือกชุดเงื่อนไข</option><option value="breakout">Breakout แข็งแรง</option><option value="momentum">โมเมนตัมขาขึ้น</option><option value="oversold">Oversold</option></select></label><label>RSI ต่ำสุด <input id="rsi-min" type="number" min="0" max="100"></label><label>RSI สูงสุด <input id="rsi-max" type="number" min="0" max="100"></label><label>Volume ขั้นต่ำ (×) <input id="volume-min" type="number" min="0" step="0.1"></label><label>คะแนนขั้นต่ำ <input id="score-min" type="number" min="0"></label></div><div class="condition-list">${[['breakout','Breakout 20D'],['rsi-high','RSI ≥70'],['rsi-momentum','RSI 55–70'],['volume','Volume Spike'],['macd','MACD Cross'],['trend','EMA ขาขึ้น'],['rsi-low','Oversold']].map(([v,l])=>`<label><input data-condition type="checkbox" value="${v}"> ${l}</label>`).join('')}</div><div class="filter-actions"><button id="save-filters">บันทึกตัวกรอง</button><button id="reset-filters">ล้างเงื่อนไข</button><label><input id="watch-only" type="checkbox"> เฉพาะ Watchlist</label><button id="export-watch">ส่งออก Watchlist สำหรับ LINE</button><span id="filter-message" role="status"></span></div><small>Watchlist บันทึกในเบราว์เซอร์นี้ · LINE ใช้รายการที่ส่งออกไปตั้งค่าใน GitHub Secrets</small>`;
 document.querySelector('.table-wrap').before(filters);
+filters.querySelector('.filter-grid').insertAdjacentHTML('beforeend','<label>ช่วง Relative Strength<select id="rs-period"><option value="20">20 แท่งปิด</option><option value="60">60 แท่งปิด</option></select></label><label>RS ขั้นต่ำ (ส่วนต่าง pp)<input id="rs-min" type="number" step="0.1" placeholder="ไม่กรอง"></label><label>มูลค่าเฉลี่ย20D ขั้นต่ำ (ล้าน)<input id="liquidity-min" type="number" min="0" step="0.1" placeholder="หน่วย THB/USD/USDT รายตัว"></label><label>ปิดในแท่งขั้นต่ำ (%)<input id="close-min" type="number" min="0" max="100" step="1" placeholder="เช่น 75"></label>');
+filters.querySelector('.condition-list').insertAdjacentHTML('beforeend','<label><input data-condition type="checkbox" value="relative-strength"> RS เหนือตลาด 20+60D</label><label><input data-condition type="checkbox" value="liquidity"> สภาพคล่องผ่านเกณฑ์</label><label><input data-condition type="checkbox" value="strong-close"> Strong Close</label>');
+document.querySelector('#preset').insertAdjacentHTML('beforeend','<option value="leaders">Market Leaders · RS + Liquidity</option><option value="quality-breakout">Breakout Quality · ปิดแข็งแรง</option>');
+document.querySelector('#signal-filter').insertAdjacentHTML('beforeend','<option value="relative-strength">Relative Strength</option><option value="liquidity">Liquidity</option><option value="strong-close">Strong Close</option>');
+filters.insertAdjacentHTML('beforeend','<p class="quality-guide">RS คือผลตอบแทนส่วนต่างกับ SET / S&P 500 / BTC บนวันเดียวกัน (pp ไม่ใช่ RSI) · Liquidity เริ่มต้น: ไทย 20M THB, US 10M USD, Crypto 5M USD/USDT · มูลค่าหุ้นประมาณจากปิดปรับสิทธิ × Volume; Yahoo crypto ใช้ Volume USD ที่รายงาน และ Binance ใช้ QuoteVolume USDT · Strong Close: ปิด ≥75% ของช่วง High–Low และ Volume ≥1.5× · ใช้แท่งปิดที่ไม่ล่าช้าเท่านั้น</p>');
 document.querySelector('#preset').insertAdjacentHTML('beforeend','<option value="early">ต้นรอบรายวัน · ไม่ไล่ราคา</option>');
 document.querySelector('#signal-filter').insertAdjacentHTML('beforeend','<option value="early-cycle">ต้นรอบรายวัน</option>');
 filters.querySelector('.condition-list').insertAdjacentHTML('afterbegin','<label><input data-condition type="checkbox" value="early-cycle"> ต้นรอบรายวัน</label>');
@@ -201,10 +223,11 @@ filters.insertAdjacentHTML('beforeend','<p class="crypto-data-status">ต้น�
 const pagination=document.createElement('div');pagination.className='pagination';
 pagination.innerHTML='<button id="page-prev">← ก่อนหน้า</button><span id="page-label"></span><button id="page-next">ถัดไป →</button>';
 document.querySelector('.table-wrap').after(pagination);
-const filterState=()=>({mode:document.querySelector('#filter-mode').value,market:selectedMarket,types:[...document.querySelectorAll('[data-condition]:checked')].map(e=>e.value),values:Object.fromEntries(['rsi-min','rsi-max','volume-min','score-min'].map(id=>[id,document.querySelector('#'+id).value]))});
-function applyFilterState(s){document.querySelector('#filter-mode').value=s.mode||'and';selectedMarket=s.market||'All';document.querySelectorAll('[data-condition]').forEach(e=>e.checked=(s.types||[]).includes(e.value));for(const id of ['rsi-min','rsi-max','volume-min','score-min'])document.querySelector('#'+id).value=s.values?.[id]??'';document.querySelector('#signal-filter').value='all';page=1;render();}
+const numericFilterIds=['rsi-min','rsi-max','volume-min','score-min','rs-min','liquidity-min','close-min'];
+const filterState=()=>({mode:document.querySelector('#filter-mode').value,market:selectedMarket,rsPeriod:document.querySelector('#rs-period').value,types:[...document.querySelectorAll('[data-condition]:checked')].map(e=>e.value),values:Object.fromEntries(numericFilterIds.map(id=>[id,document.querySelector('#'+id).value]))});
+function applyFilterState(s){document.querySelector('#filter-mode').value=s.mode||'and';selectedMarket=s.market||'All';document.querySelector('#rs-period').value=s.rsPeriod||'20';document.querySelectorAll('[data-condition]').forEach(e=>e.checked=(s.types||[]).includes(e.value));for(const id of numericFilterIds)document.querySelector('#'+id).value=s.values?.[id]??'';document.querySelector('#signal-filter').value='all';page=1;render();}
 filters.addEventListener('change',()=>{page=1;render();});
-document.querySelector('#preset').addEventListener('change',e=>{const presets={early:{types:['early-cycle'],values:{'rsi-min':45,'rsi-max':65,'volume-min':1.2}},breakout:{types:['breakout','volume'],values:{'rsi-min':55,'rsi-max':70,'volume-min':1.5}},momentum:{types:['trend','rsi-momentum'],values:{'rsi-min':55,'rsi-max':69.9}},oversold:{types:['rsi-low'],values:{'rsi-max':29.9}}};if(presets[e.target.value])applyFilterState({...presets[e.target.value],market:selectedMarket});});
+document.querySelector('#preset').addEventListener('change',e=>{const presets={leaders:{types:['relative-strength','liquidity']},'quality-breakout':{types:['breakout','volume','strong-close','liquidity'],values:{'volume-min':1.5,'close-min':75}},early:{types:['early-cycle'],values:{'rsi-min':45,'rsi-max':65,'volume-min':1.2}},breakout:{types:['breakout','volume'],values:{'rsi-min':55,'rsi-max':70,'volume-min':1.5}},momentum:{types:['trend','rsi-momentum'],values:{'rsi-min':55,'rsi-max':69.9}},oversold:{types:['rsi-low'],values:{'rsi-max':29.9}}};if(presets[e.target.value])applyFilterState({...presets[e.target.value],market:selectedMarket});});
 document.querySelector('#save-filters').addEventListener('click',()=>{try{localStorage.setItem('ms-filters',JSON.stringify(filterState()));document.querySelector('#filter-message').textContent='บันทึกแล้ว';}catch{document.querySelector('#filter-message').textContent='เบราว์เซอร์ไม่อนุญาตให้บันทึก';}});
 document.querySelector('#reset-filters').addEventListener('click',()=>{document.querySelector('#preset').value='';applyFilterState({});});
 document.querySelector('#page-prev').addEventListener('click',()=>{page--;render();});

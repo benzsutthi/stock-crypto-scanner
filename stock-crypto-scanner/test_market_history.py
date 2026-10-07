@@ -80,6 +80,7 @@ class MarketHistoryTest(unittest.TestCase):
                 patch('build_market_data.yf.download', return_value=downloaded), \
                 patch('build_market_data.yf.Ticker') as ticker, \
                 patch('build_market_data.stock_history_stale', return_value=False), \
+                patch('build_market_data.fetch_benchmark', return_value={'history':[]}), \
                 patch('build_market_data.requests.get', return_value=response):
             ticker.return_value.history.return_value = pd.DataFrame()
             result = build_snapshot(Path(directory)/'stocks.json')

@@ -3,7 +3,7 @@ const vm=require('node:vm');
 const assert=require('node:assert/strict');
 const code=fs.readFileSync('app.js','utf8');
 const context=vm.createContext({Date,Intl});
-vm.runInContext(code.slice(code.indexOf('function earlyFresh'),code.indexOf('function matchesFilters')),context);
+vm.runInContext(code.slice(code.indexOf('function qualityFresh'),code.indexOf('function matchesFilters')),context);
 const now=new Date('2026-10-01T12:00:00Z');
 const crypto={market:'Crypto',earlyCycle:true,priceDate:'2026-09-30',snapshotAt:'2026-10-01T11:00:00Z',quoteUpdatedAt:'2026-10-01T11:00:00Z'};
 assert.equal(context.earlyFresh(crypto,now),true);

@@ -14,6 +14,8 @@ from build_market_data import extract_ticker_frame
 from technicals import analyze
 from refresh_policy import ANALYSIS_VERSION, read_previous, reusable
 from market_history import clean_history
+from quality_metrics import return_history, attach_quality
+from benchmarks import fetch_benchmark
 
 # Provider IDs, not ticker spelling, establish identity. Unmapped coins retain
 # their market quote but never receive technical signals from a guessed ticker.
@@ -90,7 +92,7 @@ def exchange_history(symbol):
     response.raise_for_status()
     bars = [b for b in response.json() if int(b[6]) < datetime.now(timezone.utc).timestamp()*1000]
     return pd.DataFrame({'Close': [float(b[4]) for b in bars], 'High': [float(b[2]) for b in bars],
-                         'Low': [float(b[3]) for b in bars], 'Volume': [float(b[5]) for b in bars]},
+                          'Low': [float(b[3]) for b in bars], 'Volume': [float(b[5]) for b in bars], 'QuoteVolume':[float(b[7]) for b in bars]},
                         index=pd.to_datetime([b[0] for b in bars], unit='ms', utc=True))
 
 
@@ -117,11 +119,12 @@ def enrich(coin, frame, history_source):
                  historyUnavailable=True, historySource=None, priceDate=None,
                  earlyCycle=False, earlyScore=0)
     if len(frame) >= 50 and (datetime.now(timezone.utc).date()-frame.index[-1].date()).days == 1:
-        result = analyze(frame)
+        result = analyze(frame,volume_basis='quote' if history_source and history_source.startswith('Yahoo') else 'base')
         asset.update(result)
         asset.update(price=coin['price'], change=coin['change'], techPrice=result['price'],
                      priceDate=frame.index[-1].date().isoformat(), historySource=history_source,
-                      historyUnavailable=False)
+                      historyUnavailable=False, returnHistory=return_history(frame),
+                      liquidityCurrency='USD' if history_source and history_source.startswith('Yahoo') else 'USDT' if history_source and 'Binance' in history_source else None)
     return apply_quote_freshness(asset)
 
 
@@ -130,6 +133,8 @@ def build_snapshot(output, previous_path=None):
     now = datetime.now(timezone.utc)
     target = (now.date()-timedelta(days=1)).isoformat()
     previous = read_previous(previous_path)
+    benchmarks = {currency:fetch_benchmark(symbol,name,'Crypto',previous.get('benchmarks',{}).get(currency))
+                  for currency,symbol,name in [('USD','BTC-USD','BTC/USD'),('USDT','BTCUSDT','BTC/USDT')]}
     cached = {a['id']:a for a in previous.get('assets', [])}
     symbols = Counter(c['symbol'] for c in coins)
     reuse = {c['id'] for c in coins if symbols[c['symbol']] == 1 and history_ticker(c) and cached.get(c['id'], {}).get('analysisVersion') == ANALYSIS_VERSION and cached.get(c['id'], {}).get('priceDate') == target and not cached.get(c['id'], {}).get('historyUnavailable', True) and not cached.get(c['id'], {}).get('historyUpdateError') and reusable(cached.get(c['id']), target, now)}
@@ -166,16 +171,22 @@ def build_snapshot(output, previous_path=None):
         return asset
     with ThreadPoolExecutor(max_workers=5) as executor:
         assets = list(executor.map(worker, coins))
+    for asset in assets:
+        benchmark=benchmarks.get(asset.get('liquidityCurrency'))
+        if asset.get('symbol') == 'BTC' and benchmark:
+            benchmark=dict(benchmark,history=asset.get('returnHistory',[]),source=asset.get('historySource'))
+        attach_quality(asset,benchmark)
     analyzed = sum(not a['historyUnavailable'] for a in assets)
     if not analyzed:
         raise RuntimeError('No historical crypto data; refusing to replace a working snapshot.')
     result = dict(generatedAt=datetime.now(timezone.utc).isoformat(), source=source,
                   assets=assets, analyzedCount=analyzed,
                   unavailableSymbols=[a['symbol'] for a in assets if a['historyUnavailable']],
-                  refreshMinutes=30, quoteDescription='Provider quotes refreshed every 30 minutes; confirmed UTC daily bars for signals.')
+                  refreshMinutes=30, benchmarks=benchmarks, quoteDescription='Provider quotes refreshed every 30 minutes; confirmed UTC daily bars for signals.')
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, allow_nan=False), encoding='utf-8')
     print(f'Crypto: {len(assets)} ranked assets; {analyzed} analyzed; quotes from {source}.')
+    print(f"Quality: RS20 available {sum(a.get('relativeStrength20') is not None for a in assets)}, RS60 available {sum(a.get('relativeStrength60') is not None for a in assets)}, liquid {sum(a.get('liquidityPassed',False) for a in assets)}, strong close {sum(a.get('strongClose',False) for a in assets)}.")
     print('History unavailable: ' + ', '.join(result['unavailableSymbols']))
     return result
 

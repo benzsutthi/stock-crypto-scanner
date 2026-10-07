@@ -11,7 +11,7 @@ def ema(values, period):
     return out
 
 
-def analyze(frame):
+def analyze(frame, volume_basis='base'):
     if len(frame) < 50:
         raise ValueError('At least 50 confirmed daily bars are required')
     closes = frame.Close.tolist()
@@ -29,6 +29,19 @@ def analyze(frame):
     high = float(frame.High.iloc[-21:-1].max())
     avg = float(frame.Volume.iloc[-21:-1].mean())
     ratio = float(frame.Volume.iloc[-1]) / avg if avg > 0 else 0
+    close_location = (closes[-1]-float(frame.Low.iloc[-1]))/(float(frame.High.iloc[-1])-float(frame.Low.iloc[-1])) if 'Low' in frame and frame.High.iloc[-1]>frame.Low.iloc[-1] else None
+    if close_location is not None and not 0<=close_location<=1:
+        close_location = None
+    if 'QuoteVolume' in frame:
+        turnover = float(frame.QuoteVolume.iloc[-20:].mean())
+        liquidity_basis = 'quoted turnover from exchange'
+    elif volume_basis == 'quote':
+        turnover = float(frame.Volume.iloc[-20:].mean())
+        liquidity_basis = 'Yahoo crypto reported USD volume'
+    else:
+        turnover = float((frame.Close*frame.Volume).iloc[-20:].mean())
+        liquidity_basis = 'estimated adjusted close × base/share volume'
+    strong_close = close_location is not None and close_location>=0.75 and ratio>=1.5
     labels = []
     score = 0
     def add(kind, label, points):
@@ -49,6 +62,8 @@ def analyze(frame):
         add('macd', 'MACD Golden Cross', 20)
     if e50 and closes[-1] > e20 > e50:
         add('trend', 'ขาขึ้น EMA20/50', 10)
+    if strong_close:
+        add('strong-close', f'ปิดแข็งแรง {close_location*100:.0f}%', 10)
     # Early-cycle setup: tight base, a recent turn, confirmation and no chasing.
     # All windows exclude future bars; the base excludes the current bar.
     low = float(frame.Low.iloc[-21:-1].min()) if 'Low' in frame else None
@@ -78,4 +93,5 @@ def analyze(frame):
                 high20=high, breakoutDistance=round((closes[-1]/high-1)*100, 2),
                 signals=labels, score=score, earlyCycle=early_cycle, earlyScore=early_score,
                 earlyConditions=conditions, baseWidth=round(base_width, 2) if base_width is not None else None,
-                ema20Distance=round(extension, 2))
+                ema20Distance=round(extension, 2), closeLocation=close_location,
+                strongClose=strong_close, avgTurnover20=turnover, liquidityBasis=liquidity_basis)

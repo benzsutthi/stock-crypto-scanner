@@ -56,7 +56,7 @@ def main():
         if (now.date() - frame.index[-1].date()).days > 4:
             print(f'Skipping stale daily quote: {ticker}')
             continue
-        asset = dict(market=market, symbol=symbol, priceDate=frame.index[-1].date().isoformat(), **analyze(frame))
+        asset = dict(market=market, symbol=symbol, priceDate=frame.index[-1].date().isoformat(), **analyze(frame,volume_basis='quote' if market=='Crypto' else 'base'))
         if asset['priceDate'] <= state.get(key, {}).get('date', ''):
             continue
         signals = select_new(asset, state)
