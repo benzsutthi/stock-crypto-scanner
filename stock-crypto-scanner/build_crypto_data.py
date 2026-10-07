@@ -16,6 +16,7 @@ from refresh_policy import ANALYSIS_VERSION, read_previous, reusable
 from market_history import clean_history
 from quality_metrics import return_history, attach_quality
 from benchmarks import fetch_benchmark
+from config import CRYPTO_TOP_LIMIT
 
 # Provider IDs, not ticker spelling, establish identity. Unmapped coins retain
 # their market quote but never receive technical signals from a guessed ticker.
@@ -54,7 +55,7 @@ def fetch_universe():
     try:
         response = requests.get('https://api.coinpaprika.com/v1/tickers', timeout=20)
         response.raise_for_status()
-        coins = sorted((c for c in response.json() if c.get('rank', 0) > 0), key=lambda c: c['rank'])[:100]
+        coins = sorted((c for c in response.json() if c.get('rank', 0) > 0), key=lambda c: c['rank'])[:CRYPTO_TOP_LIMIT]
         if not coins:
             raise ValueError('Empty ranking')
         return [dict(id=c['id'], symbol=c['symbol'].upper(), name=c['name'], rank=c['rank'],
@@ -64,7 +65,7 @@ def fetch_universe():
         errors.append(str(error))
     try:
         response = requests.get('https://api.coingecko.com/api/v3/coins/markets', params={
-            'vs_currency': 'usd', 'order': 'market_cap_desc', 'per_page': 100, 'page': 1}, timeout=20)
+            'vs_currency': 'usd', 'order': 'market_cap_desc', 'per_page': CRYPTO_TOP_LIMIT, 'page': 1}, timeout=20)
         response.raise_for_status()
         coins = response.json()
         if not isinstance(coins, list) or not coins:
@@ -187,7 +188,8 @@ def build_snapshot(output, previous_path=None):
     output.write_text(json.dumps(result, ensure_ascii=False, allow_nan=False), encoding='utf-8')
     print(f'Crypto: {len(assets)} ranked assets; {analyzed} analyzed; quotes from {source}.')
     print(f"Quality: RS20 available {sum(a.get('relativeStrength20') is not None for a in assets)}, RS60 available {sum(a.get('relativeStrength60') is not None for a in assets)}, liquid {sum(a.get('liquidityPassed',False) for a in assets)}, strong close {sum(a.get('strongClose',False) for a in assets)}.")
-    print('History unavailable: ' + ', '.join(result['unavailableSymbols']))
+    unavailable_text=', '.join(result['unavailableSymbols']).encode('ascii',errors='backslashreplace').decode('ascii')
+    print('History unavailable: ' + unavailable_text)
     return result
 
 

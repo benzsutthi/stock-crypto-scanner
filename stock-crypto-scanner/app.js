@@ -92,6 +92,7 @@ function render(){
   document.querySelector('#asset-count').textContent=all.length.toLocaleString('en-US');
   const usTabCount=document.querySelector('#us-tab-count');if(usTabCount)usTabCount.textContent=stocks.filter(a=>a.market==='US').length;
   const allTabCount=document.querySelector('.tab[data-market="All"] span');if(allTabCount)allTabCount.textContent=all.length;
+  const cryptoTabCount=document.querySelector('.tab[data-market="Crypto"] span');if(cryptoTabCount)cryptoTabCount.textContent=cryptoAssets.length;
   document.querySelector('#up-count').textContent=all.filter(a=>a.change>0).length.toLocaleString('en-US');
   document.querySelector('#showing').textContent=`แสดง ${visible.length} จาก ${filtered.length} รายการ`;
   document.querySelector('#page-label').textContent=`หน้า ${page} / ${pages}`;

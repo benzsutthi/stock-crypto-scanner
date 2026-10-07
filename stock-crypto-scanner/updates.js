@@ -28,7 +28,7 @@ if(typeof window!=='undefined'&&typeof document!=='undefined'){
     const root=document.querySelector('#market-update-cards');
     if(!root)return;
     root.innerHTML='';
-    for(const [market,title] of [['Thai','หุ้นไทย'],['US','หุ้นสหรัฐ'],['Crypto','Crypto Top 100']]){
+    for(const [market,title] of [['Thai','หุ้นไทย'],['US','หุ้นสหรัฐ'],['Crypto','Crypto Top 150']]){
       const state=snapshots[market];
       const assetList=state?.assets||[];
       const generated=state?.snapshot?.generatedAt;
