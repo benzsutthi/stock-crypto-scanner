@@ -90,6 +90,8 @@ function render(){
   const visible=filtered.slice((page-1)*pageSize,page*pageSize);
   document.querySelector('#asset-rows').innerHTML=visible.length?visible.map(row).join(''):'<tr><td colspan="6" class="loading-row">ไม่พบสินทรัพย์ที่ค้นหา</td></tr>';
   document.querySelector('#asset-count').textContent=all.length.toLocaleString('en-US');
+  const usTabCount=document.querySelector('#us-tab-count');if(usTabCount)usTabCount.textContent=stocks.filter(a=>a.market==='US').length;
+  const allTabCount=document.querySelector('.tab[data-market="All"] span');if(allTabCount)allTabCount.textContent=all.length;
   document.querySelector('#up-count').textContent=all.filter(a=>a.change>0).length.toLocaleString('en-US');
   document.querySelector('#showing').textContent=`แสดง ${visible.length} จาก ${filtered.length} รายการ`;
   document.querySelector('#page-label').textContent=`หน้า ${page} / ${pages}`;
@@ -201,6 +203,7 @@ function refreshMarketData(){
 }
 document.querySelector('#today').textContent=new Intl.DateTimeFormat('th-TH',{dateStyle:'medium'}).format(new Date());
 document.querySelector('#year').textContent=new Date().getFullYear();
+document.querySelector('.tab[data-market="US"]').insertAdjacentHTML('beforeend',' <span id="us-tab-count"></span>');
 const brandCore=document.querySelector('.art-core');
 if(brandCore){const image=document.createElement('img');image.src='marketscope-icon.png';image.alt='MarketScope';image.className='brand-symbol';image.width=68;image.height=68;brandCore.replaceChildren(image);}
 document.querySelectorAll('[data-market]').forEach(el=>el.addEventListener('click',()=>{selectedMarket=el.dataset.market;page=1;render();if(el.classList.contains('market-link'))document.querySelector('#screener').scrollIntoView({behavior:'smooth'});}));

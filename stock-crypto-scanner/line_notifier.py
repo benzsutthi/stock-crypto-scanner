@@ -217,6 +217,8 @@ def build_category_bubble(title: str, subtitle: str, header_color: str, items: l
 
 def create_flex_message(scan_results: dict) -> dict:
     now_str = get_thai_now().strftime("%d/%m/%Y %H:%M น.")
+    us_count = scan_results.get('universe_stats', {}).get('us_count')
+    us_universe = f"หุ้น/ETF สหรัฐ {us_count} รายการ" if us_count is not None else "หุ้น/ETF สหรัฐ"
     bubbles = [
         build_category_bubble(
             title="🪙 CRYPTO TOP PICKS",
@@ -226,7 +228,7 @@ def create_flex_message(scan_results: dict) -> dict:
         ),
         build_category_bubble(
             title="🇺🇸 US STOCKS TOP PICKS",
-            subtitle=f"อัปเดต {now_str} • สแกนจาก US Top 100",
+            subtitle=f"อัปเดต {now_str} • สแกนจาก {us_universe}",
             header_color="#1E40AF",
             items=scan_results.get('us_stocks', [])
         ),

@@ -12,7 +12,7 @@ USE_DYNAMIC_BINANCE = True       # ดึงเหรียญคริปโต
 BINANCE_MIN_VOL_USD = 8000000    # กรองเฉพาะเหรียญที่มี Volume ซื้อขาย 24 ชม. เกิน 8 ล้านดอลลาร์
 BINANCE_TOP_LIMIT = 100          # จำนวนเหรียญคริปโตสูงสุดที่จะนำมาสแกน
 
-# รายชื่อหุ้นสหรัฐฯ ยอดนิยม 100 ตัว (US Top 100 Growth & Tech Leaders)
+# รายชื่อหุ้น/ETF ที่จดทะเบียนในสหรัฐ 200 ticker (curated universe ไม่ใช่อันดับ Market Cap)
 US_STOCKS = [
     # Mega Cap Tech & AI
     "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "AVGO", "AMD", "PLTR",
@@ -30,7 +30,24 @@ US_STOCKS = [
     # Financials & Energy
     "JPM", "BAC", "WFC", "C", "GS", "MS", "BLK", "XOM", "CVX", "COP",
     # Index & Major ETFs
-    "SPY", "QQQ", "IWM", "DIA", "SMH", "SOXX", "ARKK", "XLF", "XLE", "XLK"
+    "SPY", "QQQ", "IWM", "DIA", "SMH", "SOXX", "ARKK", "XLF", "XLE", "XLK",
+    # Enterprise software, semiconductor & cybersecurity
+    "CSCO", "IBM", "NOW", "INTU", "ACN", "CDNS", "SNPS", "ADI", "NXPI", "MCHP",
+    "ON", "MPWR", "DELL", "HPE", "HPQ", "WDAY", "TEAM", "MDB", "HUBS", "FTNT",
+    # Banks, capital markets & insurance
+    "BRK-B", "SCHW", "USB", "PNC", "TFC", "MET", "STT", "NTRS", "CME", "ICE",
+    "SPGI", "MCO", "MSCI", "AON", "MRSH", "AJG", "PGR", "TRV", "ALL", "AIG",
+    # Healthcare, medical equipment & pharmaceuticals
+    "ABT", "AMGN", "GILD", "BMY", "TMO", "DHR", "MDT", "BSX", "SYK", "CVS",
+    # Aerospace, transport, industrials & infrastructure
+    "RTX", "NOC", "GD", "HON", "UNP", "UPS", "FDX", "WM", "RSG", "ETN",
+    "PH", "ITW", "MMM", "EMR", "JCI", "CMI", "PCAR", "ROK", "OTIS", "CARR",
+    # Consumer staples & retail
+    "KO", "PEP", "PG", "CL", "KMB", "MDLZ", "GIS", "KHC", "LOW", "TJX",
+    # Utilities & real estate
+    "NEE", "DUK", "SO", "AEP", "SRE", "D", "AMT", "PLD", "EQIX", "O",
+    # Energy, mining & materials
+    "SLB", "EOG", "OXY", "MPC", "PSX", "VLO", "FCX", "NEM", "NUE", "LIN"
 ]
 
 # รายชื่อหุ้นไทย SET100 ครบเซ็ต (Thai SET100 Tickers)
