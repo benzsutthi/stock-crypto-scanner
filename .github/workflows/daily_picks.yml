@@ -1,0 +1,61 @@
+name: Daily interesting assets Top 3 at 09 Bangkok
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview only (no LINE broadcast)'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: daily-picks-line
+  cancel-in-progress: false
+jobs:
+  daily-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: stock-crypto-scanner/requirements.txt
+      - uses: actions/cache/restore@v4
+        with:
+          path: .market-cache
+          key: daily-market-read-${{ github.run_id }}
+          restore-keys: market-history-v1-
+      - uses: actions/cache/restore@v4
+        with:
+          path: .daily-picks-state
+          key: daily-picks-state-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: daily-picks-state-v1-
+      - name: Prepare state and install dependencies
+        run: |
+          mkdir -p .daily-picks-state
+          python -m pip install -r stock-crypto-scanner/requirements.txt
+      - name: Verify ranking and once-per-day delivery
+        run: python -m unittest discover -s stock-crypto-scanner -p 'test_daily_picks.py'
+      - name: Validate LINE access (read only)
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+        run: python -c "import os, requests; r=requests.get('https://api.line.me/v2/bot/info',headers={'Authorization':'Bearer '+os.environ['LINE_CHANNEL_ACCESS_TOKEN']},timeout=30); r.raise_for_status(); print('LINE access validated; no test message sent')"
+      - name: Refresh data before selecting daily picks
+        run: |
+          mkdir -p .daily-picks-data
+          python stock-crypto-scanner/build_market_data.py --output .daily-picks-data/stocks.json --previous .market-cache/stocks.json
+          python stock-crypto-scanner/build_crypto_data.py --output .daily-picks-data/crypto.json --previous .market-cache/crypto.json
+      - name: Send daily Top 3 or preview
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+        run: python stock-crypto-scanner/daily_picks.py --stocks .daily-picks-data/stocks.json --crypto .daily-picks-data/crypto.json
+      - uses: actions/cache/save@v4
+        if: always() && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
+        with:
+          path: .daily-picks-state
+          key: daily-picks-state-v1-${{ github.run_id }}-${{ github.run_attempt }}
