@@ -15,7 +15,6 @@ def select_new(asset, state):
     previous = state.get(key, {})
     if asset['priceDate'] <= previous.get('date', ''):
         return []
-    active = {s['type'] for s in asset['signals']}
     return [s for s in asset['signals'] if s['type'] not in previous.get('active', [])]
 
 
@@ -61,7 +60,7 @@ def main():
             continue
         signals = select_new(asset, state)
         if signals:
-            messages.append(f"{market} {symbol} · ปิด {asset['priceDate']}\nราคา {asset['price']:.2f} · RSI {asset['rsi']}\n" + ' / '.join(s['label'] for s in signals))
+            messages.append(f"{market} {symbol} · ปิด {asset['priceDate']}\nราคา {asset['price']:,.{6 if asset['price'] < 1 else 2}f} · RSI {asset['rsi']}\n" + ' / '.join(s['label'] for s in signals))
         updated[key] = {'date': asset['priceDate'], 'active': [s['type'] for s in asset['signals']]}
     # Single request prevents partially sent batches from being replayed.
     if messages:

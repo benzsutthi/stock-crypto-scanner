@@ -1,5 +1,7 @@
 from datetime import datetime, timezone, timedelta
 
+import requests
+
 # กำหนด Timezone เวลาประเทศไทย (UTC+7)
 try:
     import zoneinfo
@@ -263,7 +265,7 @@ def format_text_report(scan_results):
         msg_lines.append("🪙 【 CRYPTO TOP 3 】")
         for i, item in enumerate(scan_results['crypto'][:3], 1):
             sign_str = "+" if item['change_pct'] >= 0 else ""
-            msg_lines.append(f"{i}. {item['display_name']}: ${item['price']:,.2f} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
+            msg_lines.append(f"{i}. {item['display_name']}: {format_price(item['price'], '$')} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
             msg_lines.append(f"   ↳ {' • '.join([s.split(' (')[0] for s in item['signals']])}")
         msg_lines.append("")
 
@@ -271,7 +273,7 @@ def format_text_report(scan_results):
         msg_lines.append("🇺🇸 【 US STOCKS TOP 3 】")
         for i, item in enumerate(scan_results['us_stocks'][:3], 1):
             sign_str = "+" if item['change_pct'] >= 0 else ""
-            msg_lines.append(f"{i}. {item['display_name']}: ${item['price']:,.2f} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
+            msg_lines.append(f"{i}. {item['display_name']}: {format_price(item['price'], '$')} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
             msg_lines.append(f"   ↳ {' • '.join([s.split(' (')[0] for s in item['signals']])}")
         msg_lines.append("")
 
@@ -279,7 +281,7 @@ def format_text_report(scan_results):
         msg_lines.append("🇹🇭 【 THAI SET TOP 3 】")
         for i, item in enumerate(scan_results['thai_stocks'][:3], 1):
             sign_str = "+" if item['change_pct'] >= 0 else ""
-            msg_lines.append(f"{i}. {item['display_name']}: ฿{item['price']:,.2f} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
+            msg_lines.append(f"{i}. {item['display_name']}: {format_price(item['price'], '฿')} ({sign_str}{item['change_pct']}%) | Vol {item['vol_ratio']}x | RSI {item['rsi']}")
             msg_lines.append(f"   ↳ {' • '.join([s.split(' (')[0] for s in item['signals']])}")
         msg_lines.append("")
 
@@ -300,7 +302,7 @@ def send_line_broadcast(scan_results, token):
     flex_msg = create_flex_message(scan_results)
     payload = {"messages": [flex_msg]}
     
-    res = requests.post(url, headers=headers, json=payload)
+    res = requests.post(url, headers=headers, json=payload, timeout=30)
     if res.status_code == 200:
         print("✅ ส่งแจ้งเตือนแบบ LINE Flex Message สำเร็จเรียบร้อยแล้ว!")
         return True
@@ -309,5 +311,5 @@ def send_line_broadcast(scan_results, token):
         text_payload = {
             "messages": [{"type": "text", "text": format_text_report(scan_results)}]
         }
-        res_text = requests.post(url, headers=headers, json=text_payload)
+        res_text = requests.post(url, headers=headers, json=text_payload, timeout=30)
         return res_text.status_code == 200
