@@ -247,11 +247,14 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof document !== 'undefined') {
   const STORAGE_KEY = 'ms-portfolio-holdings';
   const SETTINGS_KEY = 'ms-portfolio-settings';
+  const SHEET_URL_KEY = 'ms-portfolio-gsheet-url';
+  const SHEET_AUTO_KEY = 'ms-portfolio-gsheet-auto';
   const loadJson = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } };
   const saveJson = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
   let holdings = loadJson(STORAGE_KEY, []);
-  let settings = loadJson(SETTINGS_KEY, { baseCurrency: 'THB', usdThbRate: 34.5, weightBy: 'value' });
+  let settings = loadJson(SETTINGS_KEY, { baseCurrency: 'THB', usdThbRate: 34.5, weightBy: 'value', privacyMode: false });
+  let sheetConfig = loadJson(SHEET_AUTO_KEY, { enabled: true, intervalMs: 300000 });
   let priceMap = {};
   let catalog = [];
   let editingId = null;
@@ -259,6 +262,7 @@ if (typeof document !== 'undefined') {
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmtMoney = (n, currency = 'THB') => {
     if (!Number.isFinite(n)) return '—';
+    if (settings.privacyMode) return currency === 'THB' ? '฿••••••' : '$••••••';
     const cur = currency === 'USDT' ? 'USD' : currency;
     try {
       const formatted = new Intl.NumberFormat('en-US', {
@@ -272,7 +276,7 @@ if (typeof document !== 'undefined') {
       return `${n.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${currency}`;
     }
   };
-  const fmtQty = (n) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 8 }).format(n);
+  const fmtQty = (n) => (settings.privacyMode ? '••••' : new Intl.NumberFormat('en-US', { maximumFractionDigits: 8 }).format(n));
 
   function renderPortfolio() {
     const result = calculatePortfolio(holdings, { ...settings, priceMap });
@@ -470,13 +474,29 @@ if (typeof document !== 'undefined') {
   const baseSelect = document.querySelector('#base-currency');
   const rateInput = document.querySelector('#usd-thb-rate');
   const weightSelect = document.querySelector('#weight-by');
+  const privacyToggleBtn = document.querySelector('#toggle-privacy');
   baseSelect.value = settings.baseCurrency;
   rateInput.value = settings.usdThbRate;
   weightSelect.value = settings.weightBy;
 
+  function updatePrivacyButton() {
+    if (!privacyToggleBtn) return;
+    privacyToggleBtn.textContent = settings.privacyMode ? '👁 แสดงยอดเงิน' : '🙈 ซ่อนยอดเงิน';
+    privacyToggleBtn.setAttribute('aria-pressed', String(Boolean(settings.privacyMode)));
+  }
+  updatePrivacyButton();
+
+  privacyToggleBtn?.addEventListener('click', () => {
+    settings.privacyMode = !settings.privacyMode;
+    saveJson(SETTINGS_KEY, settings);
+    updatePrivacyButton();
+    renderPortfolio();
+  });
+
   for (const el of [baseSelect, rateInput, weightSelect]) {
     el.addEventListener('change', () => {
       settings = {
+        ...settings,
         baseCurrency: baseSelect.value,
         usdThbRate: Number(rateInput.value) > 0 ? Number(rateInput.value) : 34.5,
         weightBy: weightSelect.value,
@@ -499,7 +519,13 @@ if (typeof document !== 'undefined') {
 
   document.querySelector('#clear-portfolio').addEventListener('click', () => {
     holdings = [];
-    saveJson(STORAGE_KEY, holdings);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SHEET_URL_KEY);
+      localStorage.removeItem(SHEET_AUTO_KEY);
+    } catch {}
+    if (sheetUrlInput) sheetUrlInput.value = '';
+    if (sheetStatus) sheetStatus.textContent = 'ล้างข้อมูลพอร์ตและลิงก์ส่วนตัวในเบราว์เซอร์แล้ว';
     resetForm();
     renderPortfolio();
   });
@@ -517,43 +543,96 @@ if (typeof document !== 'undefined') {
   const sheetUrlInput = document.querySelector('#gsheet-url');
   const sheetStatus = document.querySelector('#gsheet-status');
   const syncSheetBtn = document.querySelector('#sync-gsheet');
-  const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4/edit?gid=146811986#gid=146811986';
+  const sheetAutoCheck = document.querySelector('#gsheet-auto');
+  const sheetIntervalSelect = document.querySelector('#gsheet-interval');
 
   if (sheetUrlInput) {
-    sheetUrlInput.value = loadJson('ms-portfolio-gsheet-url', DEFAULT_SHEET_URL);
+    sheetUrlInput.value = loadJson(SHEET_URL_KEY, '');
   }
+  if (sheetAutoCheck) sheetAutoCheck.checked = Boolean(sheetConfig.enabled);
+  if (sheetIntervalSelect) sheetIntervalSelect.value = String(sheetConfig.intervalMs || 300000);
+
+  let sheetSyncInFlight = null;
+  let lastSheetSyncAt = 0;
+  let sheetTimer = null;
 
   async function syncFromGoogleSheet() {
     if (!sheetUrlInput || !syncSheetBtn) return;
+    if (sheetSyncInFlight) return sheetSyncInFlight;
     const rawUrl = sheetUrlInput.value.trim();
+    if (!rawUrl) {
+      if (sheetStatus) sheetStatus.textContent = 'กรุณาวางลิงก์ Google Sheets ของคุณ (เก็บเฉพาะในเบราว์เซอร์นี้)';
+      return;
+    }
     syncSheetBtn.disabled = true;
     if (sheetStatus) sheetStatus.textContent = 'กำลังดึงข้อมูลจาก Google Sheets...';
-    try {
-      const csvUrl = parseGoogleSheetUrl(rawUrl);
-      saveJson('ms-portfolio-gsheet-url', rawUrl);
-      const response = await fetch(csvUrl, { cache: 'no-store' });
-      if (!response.ok) throw new Error(`HTTP ${response.status} (ตรวจสอบว่าเปิดแชร์ลิงก์แบบ Anyone with the link)`);
-      const csvText = await response.text();
-      const { holdings: imported, inferredUsdThbRate } = parsePortfolioCsv(csvText);
-      if (!imported.length) throw new Error('ไม่พบรายการที่มีจำนวนและต้นทุน > 0');
-      holdings = imported;
-      saveJson(STORAGE_KEY, holdings);
-      if (inferredUsdThbRate) {
-        settings.usdThbRate = inferredUsdThbRate;
-        rateInput.value = inferredUsdThbRate;
-        saveJson(SETTINGS_KEY, settings);
+    sheetSyncInFlight = (async () => {
+      try {
+        const csvUrl = parseGoogleSheetUrl(rawUrl);
+        saveJson(SHEET_URL_KEY, rawUrl);
+        const response = await fetch(csvUrl, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status} (ตรวจสอบว่าเปิดแชร์ลิงก์แบบ Anyone with the link)`);
+        const csvText = await response.text();
+        const { holdings: imported, inferredUsdThbRate } = parsePortfolioCsv(csvText);
+        if (!imported.length) throw new Error('ไม่พบรายการที่มีจำนวนและต้นทุน > 0');
+        holdings = imported;
+        saveJson(STORAGE_KEY, holdings);
+        if (inferredUsdThbRate) {
+          settings.usdThbRate = inferredUsdThbRate;
+          rateInput.value = inferredUsdThbRate;
+          saveJson(SETTINGS_KEY, settings);
+        }
+        lastSheetSyncAt = Date.now();
+        resetForm();
+        renderPortfolio();
+        const nextMins = Math.round((sheetConfig.intervalMs || 300000) / 60000);
+        if (sheetStatus) {
+          sheetStatus.textContent = `ซิงก์สำเร็จ ${imported.length} สินทรัพย์ (${new Date().toLocaleTimeString('th-TH')})${sheetConfig.enabled ? ` · รีเฟรชอัตโนมัติทุก ${nextMins} นาที` : ''}`;
+        }
+      } catch (err) {
+        if (sheetStatus) sheetStatus.textContent = `ดึงข้อมูลไม่สำเร็จ: ${err.message}`;
+      } finally {
+        syncSheetBtn.disabled = false;
+        sheetSyncInFlight = null;
       }
-      resetForm();
-      renderPortfolio();
-      if (sheetStatus) sheetStatus.textContent = `ดึงสำเร็จ ${imported.length} สินทรัพย์ (อัปเดตล่าสุด ${new Date().toLocaleTimeString('th-TH')})`;
-    } catch (err) {
-      if (sheetStatus) sheetStatus.textContent = `ดึงข้อมูลไม่สำเร็จ: ${err.message}`;
-    } finally {
-      syncSheetBtn.disabled = false;
-    }
+    })();
+    return sheetSyncInFlight;
   }
 
-  syncSheetBtn?.addEventListener('click', syncFromGoogleSheet);
+  function scheduleSheetRefresh() {
+    if (sheetTimer) clearInterval(sheetTimer);
+    sheetTimer = null;
+    if (!sheetConfig.enabled || !sheetUrlInput?.value.trim()) return;
+    const interval = Number(sheetConfig.intervalMs) || 300000;
+    sheetTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine !== false) {
+        syncFromGoogleSheet();
+      }
+    }, interval);
+  }
+
+  function saveSheetConfig() {
+    sheetConfig = {
+      enabled: Boolean(sheetAutoCheck?.checked),
+      intervalMs: Number(sheetIntervalSelect?.value) || 300000,
+    };
+    saveJson(SHEET_AUTO_KEY, sheetConfig);
+    scheduleSheetRefresh();
+  }
+
+  syncSheetBtn?.addEventListener('click', () => {
+    syncFromGoogleSheet();
+    scheduleSheetRefresh();
+  });
+  sheetAutoCheck?.addEventListener('change', saveSheetConfig);
+  sheetIntervalSelect?.addEventListener('change', saveSheetConfig);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && sheetConfig.enabled && sheetUrlInput?.value.trim()) {
+      if (Date.now() - lastSheetSyncAt >= (Number(sheetConfig.intervalMs) || 300000)) {
+        syncFromGoogleSheet();
+      }
+    }
+  });
 
   // Support pre-filling from Screener via ?symbol=...&market=...&currency=...
   const params = new URLSearchParams(window.location.search);
@@ -566,4 +645,8 @@ if (typeof document !== 'undefined') {
 
   renderPortfolio();
   loadMarketPrices();
+  if (sheetConfig.enabled && sheetUrlInput?.value.trim()) {
+    syncFromGoogleSheet();
+    scheduleSheetRefresh();
+  }
 }

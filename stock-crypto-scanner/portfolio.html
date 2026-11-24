@@ -57,18 +57,27 @@
           </label>
         </div>
         <div class="portfolio-toolbar-actions">
+          <button type="button" id="toggle-privacy" class="secondary-action" aria-pressed="false">🙈 ซ่อนยอดเงิน</button>
           <button type="button" id="load-sample" class="secondary-action">ลองตัวอย่างพอร์ต</button>
           <button type="button" id="export-portfolio" class="secondary-action">ส่งออก JSON</button>
-          <button type="button" id="clear-portfolio" class="secondary-action">ล้างพอร์ต</button>
+          <button type="button" id="clear-portfolio" class="secondary-action">ล้างข้อมูลทั้งหมด</button>
         </div>
       </section>
 
       <section class="gsheet-bar" aria-label="ดึงข้อมูลจาก Google Sheets">
-        <label class="gsheet-input-wrap">ลิงก์ Google Sheets (เปิดแชร์อ่านได้)
-          <input id="gsheet-url" type="url" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=...">
+        <label class="gsheet-input-wrap">ลิงก์ Google Sheets ส่วนตัว (เก็บเฉพาะในเบราว์เซอร์ของคุณ ไม่ส่งออกภายนอก)
+          <input id="gsheet-url" type="password" autocomplete="off" placeholder="วางลิงก์ https://docs.google.com/spreadsheets/d/.../edit?gid=...">
         </label>
-        <button type="button" id="sync-gsheet" class="primary-action gsheet-btn">↻ ดึงข้อมูลจาก Google Sheets</button>
-        <small id="gsheet-status" class="gsheet-status" role="status">รองรับคอลัมน์ Ticker, Asset Class, Shares/Units, avg invest, Current Price</small>
+        <div class="gsheet-auto-wrap">
+          <label class="gsheet-check"><input id="gsheet-auto" type="checkbox" checked> รีเฟรชอัตโนมัติ</label>
+          <select id="gsheet-interval" aria-label="รอบรีเฟรชอัตโนมัติ">
+            <option value="60000">ทุก 1 นาที</option>
+            <option value="300000" selected>ทุก 5 นาที</option>
+            <option value="900000">ทุก 15 นาที</option>
+          </select>
+        </div>
+        <button type="button" id="sync-gsheet" class="primary-action gsheet-btn">↻ ซิงก์ตอนนี้</button>
+        <small id="gsheet-status" class="gsheet-status" role="status">รองรับคอลัมน์ Ticker, Asset Class, Shares/Units, avg invest, Current Price · ลิงก์จะถูกปิดบังเพื่อความเป็นส่วนตัว</small>
       </section>
 
       <section class="portfolio-summary">

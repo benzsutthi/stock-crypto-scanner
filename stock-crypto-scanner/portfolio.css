@@ -103,6 +103,30 @@
   white-space: nowrap;
 }
 
+.gsheet-auto-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gsheet-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.gsheet-auto-wrap select {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+}
+
 .gsheet-status {
   width: 100%;
   font-size: 12px;
