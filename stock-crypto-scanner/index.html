@@ -22,6 +22,7 @@
       <a class="nav active" href="#"><span>▦</span> ภาพรวมตลาด</a>
       <a class="nav" href="#screener"><span>⌕</span> Stock screener</a>
       <a class="nav" href="#screener" data-market="Crypto"><span>◈</span> Crypto top 150</a>
+      <a class="nav" href="portfolio.html"><span>◔</span> Portfolio · พอร์ตของฉัน</a>
       <a class="nav calculator-link" href="average-cost.html"><span>∑</span> CostPilot · วางแผนต้นทุน</a>
       <button class="nav status-menu" id="open-update-status" type="button" aria-haspopup="dialog" aria-controls="update-dialog"><span>◷</span> สถานะข้อมูล</button>
       <div class="side-label markets-label">ตลาดที่ติดตาม</div>
@@ -55,6 +56,15 @@
       <div class="update-panel-heading"><h2 id="update-dialog-title">การอัปเดตข้อมูล</h2><label><input id="auto-refresh" type="checkbox" checked> ตรวจข้อมูลใหม่อัตโนมัติ</label><button id="close-update-status" class="refresh-btn" type="button" aria-label="ปิดสถานะข้อมูล">ปิด ×</button></div>
       <p id="browser-refresh-status" role="status"></p><div id="market-update-cards" class="update-cards"></div><p id="next-publish"></p>
       <small>เวลาสร้างชุดข้อมูล ≠ เวลาราคา: ราคาอาจล่าช้าจากผู้ให้บริการ สัญญาณใช้แท่งปิดที่แสดงวันที่รายตัว · ปุ่มรีเฟรชอ่านชุดล่าสุดบนเว็บ ไม่ได้สั่งซื้อหรือเรียก workflow ใหม่</small>
+    </section>
+  </dialog>
+  <dialog id="asset-detail-dialog" class="update-dialog detail-dialog" aria-labelledby="detail-title">
+    <section class="update-panel">
+      <div class="update-panel-heading">
+        <div><h2 id="detail-title">—</h2><small id="detail-subtitle"></small></div>
+        <button id="close-detail-dialog" class="refresh-btn" type="button" aria-label="ปิดรายละเอียด">ปิด ×</button>
+      </div>
+      <div id="detail-body" class="detail-body"></div>
     </section>
   </dialog>
   <script src="updates.js"></script>

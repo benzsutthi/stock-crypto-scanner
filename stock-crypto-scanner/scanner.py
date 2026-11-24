@@ -6,6 +6,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime
 from technicals import analyze
+from market_history import clean_history
 from zoneinfo import ZoneInfo
 
 # รายชื่อเหรียญ Stablecoins และเหรียญ Leveraged ที่ต้องตัดออก
@@ -56,7 +57,7 @@ def fetch_dynamic_binance_crypto(min_vol_usd: float = 8000000, limit: int = 60, 
 
 def analyze_binance_crypto(coin_name: str):
     """
-    ดึงแท่งเทียนย้อนหลัง 100 วันของเหรียญจาก Binance Klines API โดยตรง (เร็วและแม่นยำ 100%)
+    ดึงแท่งเทียนย้อนหลัง 250 วันของเหรียญจาก Binance Klines API โดยตรง
     """
     try:
         pair = f"{coin_name}USDT"
@@ -70,8 +71,11 @@ def analyze_binance_crypto(coin_name: str):
             
         raw = [bar for bar in raw if int(bar[6]) < datetime.now().timestamp() * 1000]
         df = pd.DataFrame(raw, columns=['open_time', 'Open', 'High', 'Low', 'Close', 'Volume', 'close_time', 'qav', 'num_trades', 'taker_base', 'taker_quote', 'ignore'])
+        df.index = pd.to_datetime(pd.to_numeric(df['open_time'], errors='coerce'), unit='ms', utc=True)
         for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
+        df['QuoteVolume'] = pd.to_numeric(df['qav'], errors='coerce')
+        df = clean_history(df)
             
         return evaluate_dataframe(df, symbol=f"{coin_name}-USD", display_name=coin_name, asset_type="Crypto")
     except Exception:
@@ -80,10 +84,10 @@ def analyze_binance_crypto(coin_name: str):
 def evaluate_dataframe(df: pd.DataFrame, symbol: str, display_name: str, asset_type: str, include_no_signal: bool = False):
     """คำนวณ Indicator ทางเทคนิคและตัดเกรดสัญญาณ"""
     try:
-        df = df.dropna(subset=['Close', 'High', 'Low', 'Volume'])
+        df = clean_history(df)
         if len(df) < 50:
             return None
-        result = analyze(df)
+        result = analyze(df, volume_basis='quote' if asset_type == 'Crypto' and 'QuoteVolume' not in df else 'base')
         if not result['signals'] and not include_no_signal:
             return None
 
@@ -99,7 +103,10 @@ def evaluate_dataframe(df: pd.DataFrame, symbol: str, display_name: str, asset_t
             "ema50": result['ema50'],
             "high20": result['high20'],
             "signals": [s['label'] for s in result['signals']],
-            "score": result['score']
+            "score": result['score'],
+            "strong_close": result['strongClose'],
+            "early_cycle": result['earlyCycle'],
+            "avg_turnover_20": result['avgTurnover20'],
         }
     except Exception:
         return None
@@ -109,24 +116,19 @@ def analyze_ticker(symbol: str, asset_type: str = "US", include_no_signal: bool 
     ดึงข้อมูลหุ้นผ่าน yfinance และคำนวณ Indicator
     """
     try:
-        df = yf.download(symbol, period="1y", interval="1d", progress=False)
+        df = yf.download(symbol, period="1y", interval="1d", auto_adjust=True, progress=False)
         if df.empty or len(df) < 50:
             return None
         
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
+        df = clean_history(df)
+        if df.empty:
+            return None
         now = datetime.now(ZoneInfo('Asia/Bangkok' if symbol.endswith('.BK') else 'America/New_York'))
         cutoff = (17, 15) if symbol.endswith('.BK') else (16, 30)
         if (now.hour, now.minute) < cutoff:
             df = df.loc[[stamp.date() < now.date() for stamp in df.index]]
-            
-        required_cols = ['Close', 'High', 'Low', 'Volume']
-        for col in required_cols:
-            if col not in df.columns:
-                return None
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            
-        df = df.dropna(subset=['Close'])
         if len(df) < 50:
             return None
 

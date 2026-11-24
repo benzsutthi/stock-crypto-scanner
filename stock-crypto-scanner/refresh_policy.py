@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from market_holidays import is_trading_day
+
 ANALYSIS_VERSION = 'confirmed-quality-rs-v1'
 
 
@@ -21,7 +23,7 @@ def stock_session(market, now=None):
     day = local.date()
     if (local.hour, local.minute) < cutoff:
         day -= timedelta(days=1)
-    while day.weekday() > 4:
+    while not is_trading_day(day, market):
         day -= timedelta(days=1)
     return day.isoformat()
 
@@ -29,8 +31,8 @@ def stock_session(market, now=None):
 def market_open(market, now=None):
     local = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo('Asia/Bangkok' if market == 'Thai' else 'America/New_York'))
     clock = (local.hour, local.minute)
-    # Include a publication buffer after closing. Holidays are identified from quote timestamps.
-    return local.weekday() < 5 and ((9, 45) <= clock <= (17, 15) if market == 'Thai' else (9, 30) <= clock <= (16, 30))
+    # Include a publication buffer after closing.
+    return is_trading_day(local.date(), market) and ((9, 45) <= clock <= (17, 15) if market == 'Thai' else (9, 30) <= clock <= (16, 30))
 
 
 def reusable(asset, session, now=None):

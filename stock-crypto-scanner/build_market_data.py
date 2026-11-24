@@ -16,6 +16,7 @@ from refresh_policy import ANALYSIS_VERSION, read_previous, stock_session, marke
 from market_history import clean_history
 from quality_metrics import return_history, attach_quality
 from benchmarks import fetch_benchmark
+from market_holidays import is_trading_day
 
 
 def confirmed_stock(frame, market, now=None):
@@ -31,12 +32,11 @@ def confirmed_stock(frame, market, now=None):
 
 
 def stock_history_stale(price_date, market, now=None):
-    # Conservative weekday check: exchange holidays may be marked delayed.
     now = now or datetime.now(ZoneInfo('Asia/Bangkok' if market == 'Thai' else 'America/New_York'))
     expected = now.date()
     if (now.hour, now.minute) < ((17, 15) if market == 'Thai' else (16, 30)):
         expected -= timedelta(days=1)
-    while expected.weekday() >= 5:
+    while not is_trading_day(expected, market):
         expected -= timedelta(days=1)
     return price_date < expected
 

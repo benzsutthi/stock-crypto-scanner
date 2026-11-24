@@ -39,7 +39,7 @@ function row(asset) {
   const rs=n=>Number.isFinite(n)?`${n>=0?'+':''}${n.toFixed(2)} pp`:'—';
   const turnover=Number.isFinite(asset.avgTurnover20)&&asset.liquidityCurrency?`${asset.liquidityBasis?.startsWith('estimated')?'≈':''}${new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(asset.avgTurnover20)} ${esc(asset.liquidityCurrency)}`:'—';
   const quality=`<small class="signal-empty metric-detail" title="${esc(asset.rsSource||'ข้อมูล benchmark ไม่ครบ')}">RS20 ${rs(asset.relativeStrength20)} · RS60 ${rs(asset.relativeStrength60)} vs ${esc(asset.rsBenchmark||'—')}</small><small class="signal-empty metric-detail" title="${esc(asset.liquidityBasis||'')}">มูลค่าเฉลี่ย20D ${turnover} · ปิดในแท่ง ${Number.isFinite(asset.closeLocation)?(asset.closeLocation*100).toFixed(0)+'%':'—'}</small>`;
-  return `<tr><td><div class="asset-cell"><button class="watch-star" data-watch="${esc(assetKey(asset))}" aria-label="ติดตาม ${esc(symbol)}" aria-pressed="${watchlist.has(assetKey(asset))}">${watchlist.has(assetKey(asset))?'★':'☆'}</button><span class="coin-logo ${type}">${esc(logo)}</span><span><span class="asset-name">${esc(asset.name)}</span><span class="asset-symbol">${esc(symbol)}${asset.sector?` · ${esc(asset.sector)}`:''}</span>${metadata}</span></div></td><td><span class="market-badge ${type}">${badge}</span></td><td class="align-right price">${price}<small class="signal-empty metric-detail">${asset.quoteType==='15m'?'แท่ง 15m · ':crypto?'ราคาอ้างอิง · ':'ปิดรายวัน · '}${esc(quoteLabel)}</small></td><td class="align-right ${asset.change===null?'':isUp?'change-up':'change-down'}">${changeText}</td><td class="align-right ${rsiClass}">${rsiText}</td><td class="signals-cell">${badges}${asset.score?`<span class="score-pill">${asset.score} pts</span>`:''}<small class="signal-empty metric-detail">Volume ${Number.isFinite(asset.volumeRatio)?asset.volumeRatio.toFixed(2)+'×':'—'} · ระยะจาก High20 ${Number.isFinite(asset.breakoutDistance)?asset.breakoutDistance.toFixed(2)+'%':'—'} (แท่งปิด)</small>${quality}</td></tr>`;
+  return `<tr><td><div class="asset-cell"><button class="watch-star" data-watch="${esc(assetKey(asset))}" aria-label="ติดตาม ${esc(symbol)}" aria-pressed="${watchlist.has(assetKey(asset))}">${watchlist.has(assetKey(asset))?'★':'☆'}</button><span class="coin-logo ${type}">${esc(logo)}</span><button type="button" class="asset-detail-btn" data-detail="${esc(assetKey(asset))}"><span class="asset-name">${esc(asset.name)}</span><span class="asset-symbol">${esc(symbol)}${asset.sector?` · ${esc(asset.sector)}`:''}</span>${metadata}</button></div></td><td><span class="market-badge ${type}">${badge}</span></td><td class="align-right price">${price}<small class="signal-empty metric-detail">${asset.quoteType==='15m'?'แท่ง 15m · ':crypto?'ราคาอ้างอิง · ':'ปิดรายวัน · '}${esc(quoteLabel)}</small></td><td class="align-right ${asset.change===null?'':isUp?'change-up':'change-down'}">${changeText}</td><td class="align-right ${rsiClass}">${rsiText}</td><td class="signals-cell">${badges}${asset.score?`<span class="score-pill">${asset.score} pts</span>`:''}<small class="signal-empty metric-detail">Volume ${Number.isFinite(asset.volumeRatio)?asset.volumeRatio.toFixed(2)+'×':'—'} · ระยะจาก High20 ${Number.isFinite(asset.breakoutDistance)?asset.breakoutDistance.toFixed(2)+'%':'—'} (แท่งปิด)</small>${quality}</td></tr>`;
 }
 function qualityFresh(a, now=new Date()){
   if(a.historyUnavailable||a.historyStale||a.updateError||!a.priceDate||!a.snapshotAt)return false;
@@ -236,7 +236,48 @@ document.querySelector('#save-filters').addEventListener('click',()=>{try{localS
 document.querySelector('#reset-filters').addEventListener('click',()=>{document.querySelector('#preset').value='';applyFilterState({});});
 document.querySelector('#page-prev').addEventListener('click',()=>{page--;render();});
 document.querySelector('#page-next').addEventListener('click',()=>{page++;render();});
-document.querySelector('#asset-rows').addEventListener('click',e=>{const button=e.target.closest('[data-watch]');if(!button)return;const key=button.dataset.watch;watchlist.has(key)?watchlist.delete(key):watchlist.add(key);try{localStorage.setItem('ms-watchlist',JSON.stringify([...watchlist]));}catch{}render();});
+document.querySelector('#asset-rows').addEventListener('click',e=>{
+  const watchBtn=e.target.closest('[data-watch]');
+  if(watchBtn){const key=watchBtn.dataset.watch;watchlist.has(key)?watchlist.delete(key):watchlist.add(key);try{localStorage.setItem('ms-watchlist',JSON.stringify([...watchlist]));}catch{}render();return;}
+  const detailBtn=e.target.closest('[data-detail]');
+  if(detailBtn){const all=[...cryptoAssets,...stocks];const asset=all.find(a=>assetKey(a)===detailBtn.dataset.detail);if(asset)openAssetDetail(asset);}
+});
+function openAssetDetail(asset){
+  const dialog=document.querySelector('#asset-detail-dialog');
+  if(!dialog)return;
+  const cur=asset.currency||(asset.market==='Thai'?'THB':'USD');
+  document.querySelector('#detail-title').textContent=`${asset.symbol} · ${asset.name}`;
+  document.querySelector('#detail-subtitle').textContent=`${asset.market} · ปิดวิเคราะห์ ${asset.priceDate||'—'}`;
+  const fmt=(n,suffix='')=>Number.isFinite(n)?`${n.toFixed(2)}${suffix}`:'—';
+  const condLabels=[
+    ['tightBase','ฐาน 20D แคบ (≤15%)'],
+    ['recentTurn','เพิ่งกลับตัว EMA20/MACD/Breakout'],
+    ['trendImproving','EMA20 & MACD Hist ดีขึ้น'],
+    ['healthyRsi','RSI อยู่ในโซน 45–65'],
+    ['volumeConfirmation','Volume ≥ 1.2×'],
+    ['notExtended','ยังไม่ไล่ราคา (≤5% เหนือ EMA20)']
+  ];
+  const ec=asset.earlyConditions||{};
+  const checklistHtml=Object.keys(ec).length?`<h3>เกณฑ์ต้นรอบรายวัน (${asset.earlyScore??0}%)</h3><div class="early-checklist">${condLabels.map(([k,label])=>`<div class="early-item ${ec[k]?'pass':'fail'}"><span>${label}</span><b>${ec[k]?'✓ ผ่าน':'✗'}</b></div>`).join('')}</div>`:'';
+  const pfUrl=`portfolio.html?symbol=${encodeURIComponent(asset.symbol)}&market=${encodeURIComponent(asset.market)}&currency=${encodeURIComponent(asset.liquidityCurrency||cur)}`;
+  const cpUrl=`average-cost.html?symbol=${encodeURIComponent(asset.symbol)}&currency=${encodeURIComponent(asset.liquidityCurrency||cur)}`;
+  document.querySelector('#detail-body').innerHTML=`
+    <div class="detail-metrics">
+      <div class="detail-metric"><small>ราคาล่าสุด</small><b>${Number.isFinite(asset.price)?money(asset.price,cur):'—'}</b></div>
+      <div class="detail-metric"><small>RSI (14)</small><b>${Number.isFinite(asset.rsi)?asset.rsi.toFixed(1):'—'}</b></div>
+      <div class="detail-metric"><small>คะแนนสัญญาณ</small><b>${asset.score??0} pts</b></div>
+      <div class="detail-metric"><small>EMA 20 / EMA 50</small><b>${Number.isFinite(asset.ema20)?money(asset.ema20,cur):'—'} / ${Number.isFinite(asset.ema50)?money(asset.ema50,cur):'—'}</b></div>
+      <div class="detail-metric"><small>High 20D (ห่าง)</small><b>${Number.isFinite(asset.high20)?money(asset.high20,cur):'—'} (${fmt(asset.breakoutDistance,'%')})</b></div>
+      <div class="detail-metric"><small>RS20 / RS60 vs ${esc(asset.rsBenchmark||'ตลาด')}</small><b>${fmt(asset.relativeStrength20,' pp')} / ${fmt(asset.relativeStrength60,' pp')}</b></div>
+    </div>
+    ${checklistHtml}
+    <div class="detail-actions">
+      <a class="detail-link-btn" href="${pfUrl}">+ เพิ่มเข้า Portfolio</a>
+      <a class="detail-link-btn secondary" href="${cpUrl}">วางแผนซื้อเพิ่ม (CostPilot)</a>
+    </div>`;
+  dialog.showModal?.();
+}
+document.querySelector('#close-detail-dialog')?.addEventListener('click',()=>document.querySelector('#asset-detail-dialog')?.close?.());
 document.querySelector('#export-watch').addEventListener('click',()=>{const blob=new Blob([JSON.stringify([...watchlist],null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='watchlist.json';a.click();URL.revokeObjectURL(url);});
 applyFilterState(stored('ms-filters',{}));
 const cryptoStatus=document.createElement('p');cryptoStatus.id='crypto-data-status';cryptoStatus.className='crypto-data-status';cryptoStatus.setAttribute('role','status');document.querySelector('.signals-guide').after(cryptoStatus);

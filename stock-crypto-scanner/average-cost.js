@@ -47,4 +47,8 @@ if (typeof document!=='undefined') {
   form.addEventListener('change',()=>update());
   form.addEventListener('reset',()=>{setTimeout(()=>{fields.forEach(id=>document.querySelector('#'+id).removeAttribute('aria-invalid'));document.querySelector('#input-error').textContent='';document.querySelector('#result-asset').textContent='สินทรัพย์ของคุณ';clearResults();},0);});
   document.querySelector('#example').addEventListener('click',()=>{for(const [id,value] of Object.entries({'asset-name':'หุ้น A','currency':'THB','old-price':'100','old-quantity':'1000','new-price':'80','new-quantity':'1000','fees':'0'}))document.querySelector('#'+id).value=value;update();});
+  if(typeof window!=='undefined'&&typeof URLSearchParams!=='undefined'){
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('symbol')){document.querySelector('#asset-name').value=params.get('symbol');if(params.get('currency'))document.querySelector('#currency').value=params.get('currency');update();}
+  }
 }

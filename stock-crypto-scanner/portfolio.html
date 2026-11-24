@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1018">
+  <title>Portfolio · พอร์ตการลงทุนหลายสินทรัพย์ — MarketScope</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="screener.css">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="portfolio.css">
+  <link rel="icon" type="image/png" href="favicon.png">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand logo-brand" href="index.html" aria-label="MarketScope ภาพรวมตลาด"><img src="marketscope-logo.png" alt="MarketScope — Stock · Crypto · Screener" width="1000" height="275"></a>
+      <div class="side-label">WORKSPACE</div>
+      <a class="nav" href="index.html"><span>▦</span> ภาพรวมตลาด</a>
+      <a class="nav" href="index.html#screener"><span>⌕</span> Stock &amp; Crypto screener</a>
+      <a class="nav active" href="portfolio.html" aria-current="page"><span>◔</span> Portfolio · พอร์ตของฉัน</a>
+      <a class="nav calculator-link" href="average-cost.html"><span>∑</span> CostPilot · วางแผนต้นทุน</a>
+      <div class="sidebar-bottom"><p>บันทึกพอร์ตหลายสินทรัพย์<br>คำนวณสัดส่วน % อัตโนมัติ</p></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumb">เครื่องมือ <span>/</span> <b>Portfolio</b></div>
+        <a class="back-link" href="index.html">← กลับไป Screener</a>
+      </header>
+
+      <section class="portfolio-heading">
+        <span class="eyebrow">MULTI-ASSET PORTFOLIO · ALLOCATION TRACKER</span>
+        <h1>พอร์ตการลงทุน<br><span>ดูสัดส่วน % ทุกสินทรัพย์</span></h1>
+        <p>เพียงกรอกชื่อสินทรัพย์ ต้นทุนต่อหน่วย และจำนวนที่ถือ ระบบคำนวณสัดส่วน % ของแต่ละสินทรัพย์<br>และเทียบราคาตลาดล่าสุดให้อัตโนมัติ (บันทึกในเบราว์เซอร์ของคุณ)</p>
+      </section>
+
+      <section class="portfolio-controls">
+        <div class="portfolio-settings">
+          <label>สกุลเงินรวมพอร์ต
+            <select id="base-currency">
+              <option value="THB">THB (บาท)</option>
+              <option value="USD">USD (ดอลลาร์)</option>
+            </select>
+          </label>
+          <label>อัตราแลกเปลี่ยน USD/THB
+            <input id="usd-thb-rate" type="number" min="1" step="0.01" value="34.50">
+          </label>
+          <label>คิดสัดส่วน % จาก
+            <select id="weight-by">
+              <option value="value">มูลค่าปัจจุบัน (ถ้ามีราคา)</option>
+              <option value="cost">ต้นทุนรวมที่ลงไป</option>
+            </select>
+          </label>
+        </div>
+        <div class="portfolio-toolbar-actions">
+          <button type="button" id="load-sample" class="secondary-action">ลองตัวอย่างพอร์ต</button>
+          <button type="button" id="export-portfolio" class="secondary-action">ส่งออก JSON</button>
+          <button type="button" id="clear-portfolio" class="secondary-action">ล้างพอร์ต</button>
+        </div>
+      </section>
+
+      <section class="portfolio-summary">
+        <div class="summary-card"><small>ต้นทุนรวมทั้งหมด</small><b id="sum-cost">—</b><span class="sub-metric">รวมทุกสกุลเงิน</span></div>
+        <div class="summary-card"><small>มูลค่าพอร์ตปัจจุบัน</small><b id="sum-value">—</b><span class="sub-metric" id="price-sync-status">กำลังเชื่อมราคาตลาด...</span></div>
+        <div class="summary-card"><small>กำไร / ขาดทุนรวม</small><b id="sum-pnl">—</b><span class="sub-metric" id="sum-pnl-pct">—</span></div>
+        <div class="summary-card"><small>สินทรัพย์ในพอร์ต</small><b id="sum-count">0 รายการ</b><span class="sub-metric" id="sum-live">—</span></div>
+      </section>
+
+      <section class="allocation-card" aria-label="สัดส่วนสินทรัพย์ในพอร์ต">
+        <div class="allocation-header">
+          <h2>สัดส่วนแต่ละสินทรัพย์ (%)</h2>
+          <small>เรียงจากสัดส่วนมากไปน้อย</small>
+        </div>
+        <div id="allocation-bar" class="allocation-bar" role="img" aria-label="แถบแสดงสัดส่วนพอร์ต"></div>
+        <div id="allocation-legend" class="allocation-legend"></div>
+      </section>
+
+      <div class="portfolio-grid">
+        <section class="portfolio-form-card">
+          <h2>เพิ่ม / แก้ไขสินทรัพย์</h2>
+          <form id="portfolio-form" class="portfolio-form" novalidate>
+            <label>สินทรัพย์ / Ticker
+              <input id="pf-symbol" type="text" list="asset-suggestions" placeholder="เช่น PTT, NVDA, BTC" maxlength="30" required>
+              <datalist id="asset-suggestions"></datalist>
+            </label>
+            <div class="two-col">
+              <label>ตลาด
+                <select id="pf-market">
+                  <option value="Thai">Thai (SET)</option>
+                  <option value="US">US Stock</option>
+                  <option value="Crypto">Crypto</option>
+                  <option value="Other">อื่นๆ</option>
+                </select>
+              </label>
+              <label>สกุลเงิน
+                <select id="pf-currency">
+                  <option value="THB">THB</option>
+                  <option value="USD">USD</option>
+                  <option value="USDT">USDT</option>
+                </select>
+              </label>
+            </div>
+            <div class="two-col">
+              <label>ต้นทุนต่อหน่วย
+                <input id="pf-cost" type="number" min="0" step="any" inputmode="decimal" placeholder="เช่น 32.50" required>
+              </label>
+              <label>จำนวนหุ้น / เหรียญ
+                <input id="pf-quantity" type="number" min="0" step="any" inputmode="decimal" placeholder="เช่น 1000" required>
+              </label>
+            </div>
+            <p id="pf-error" class="form-error" role="status"></p>
+            <div class="form-actions">
+              <button type="submit" id="pf-submit" class="primary-action">+ เพิ่มเข้าพอร์ต</button>
+              <button type="button" id="pf-cancel-edit" class="secondary-action" hidden>ยกเลิก</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="portfolio-table-card">
+          <h2>รายการในพอร์ต</h2>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>สินทรัพย์</th>
+                  <th>ตลาด</th>
+                  <th class="align-right">จำนวน</th>
+                  <th class="align-right">ต้นทุน/หน่วย</th>
+                  <th class="align-right">ต้นทุนรวม</th>
+                  <th class="align-right">ราคาตลาด</th>
+                  <th class="align-right">มูลค่าปัจจุบัน</th>
+                  <th class="align-right">กำไร/ขาดทุน</th>
+                  <th class="align-right">สัดส่วน %</th>
+                  <th class="align-right">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="portfolio-rows">
+                <tr><td colspan="10" class="loading-row">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <footer>MarketScope · บันทึกพอร์ตการลงทุน <span>ข้อมูลเก็บไว้ในเบราว์เซอร์ของคุณเท่านั้น</span></footer>
+    </main>
+  </div>
+  <script src="portfolio.js"></script>
+</body>
+</html>
