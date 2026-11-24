@@ -103,7 +103,8 @@ function parseGoogleSheetUrl(inputUrl) {
   const idMatch = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (!idMatch) throw new Error('ลิงก์ Google Sheets ไม่ถูกต้อง');
   const gidMatch = raw.match(/[?#&]gid=(\d+)/);
-  const gid = gidMatch ? gidMatch[1] : '0';
+  const defaultGid = idMatch[1] === '1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4' ? '146811986' : '0';
+  const gid = gidMatch ? gidMatch[1] : defaultGid;
   return `https://docs.google.com/spreadsheets/d/${idMatch[1]}/gviz/tq?tqx=out:csv&gid=${gid}`;
 }
 
@@ -443,9 +444,11 @@ if (typeof document !== 'undefined') {
   const syncSheetBtn = document.querySelector('#sync-gsheet');
   const sheetAutoCheck = document.querySelector('#gsheet-auto');
   const sheetIntervalSelect = document.querySelector('#gsheet-interval');
+  const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4/edit?gid=146811986#gid=146811986';
 
   if (sheetUrlInput) {
-    sheetUrlInput.value = loadJson(SHEET_URL_KEY, '');
+    const savedUrl = loadJson(SHEET_URL_KEY, '');
+    sheetUrlInput.value = savedUrl || DEFAULT_SHEET_URL;
   }
   if (sheetAutoCheck) sheetAutoCheck.checked = Boolean(sheetConfig.enabled);
   if (sheetIntervalSelect) sheetIntervalSelect.value = String(sheetConfig.intervalMs || 300000);

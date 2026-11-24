@@ -54,6 +54,10 @@ assert.strictEqual(
   csvUrl,
   'https://docs.google.com/spreadsheets/d/1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4/gviz/tq?tqx=out:csv&gid=146811986'
 );
+assert.strictEqual(
+  parseGoogleSheetUrl('https://docs.google.com/spreadsheets/d/1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4/edit?usp=drivesdk'),
+  'https://docs.google.com/spreadsheets/d/1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4/gviz/tq?tqx=out:csv&gid=146811986'
+);
 
 const sampleCsv = [
   'Ticker,Asset Class,Shares/Units,avg invest,Current Price,Current Value THB,Total invest CostTHB',
