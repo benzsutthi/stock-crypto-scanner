@@ -63,6 +63,14 @@
         </div>
       </section>
 
+      <section class="gsheet-bar" aria-label="ดึงข้อมูลจาก Google Sheets">
+        <label class="gsheet-input-wrap">ลิงก์ Google Sheets (เปิดแชร์อ่านได้)
+          <input id="gsheet-url" type="url" placeholder="https://docs.google.com/spreadsheets/d/.../edit?gid=...">
+        </label>
+        <button type="button" id="sync-gsheet" class="primary-action gsheet-btn">↻ ดึงข้อมูลจาก Google Sheets</button>
+        <small id="gsheet-status" class="gsheet-status" role="status">รองรับคอลัมน์ Ticker, Asset Class, Shares/Units, avg invest, Current Price</small>
+      </section>
+
       <section class="portfolio-summary">
         <div class="summary-card"><small>ต้นทุนรวมทั้งหมด</small><b id="sum-cost">—</b><span class="sub-metric">รวมทุกสกุลเงิน</span></div>
         <div class="summary-card"><small>มูลค่าพอร์ตปัจจุบัน</small><b id="sum-value">—</b><span class="sub-metric" id="price-sync-status">กำลังเชื่อมราคาตลาด...</span></div>

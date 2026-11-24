@@ -39,7 +39,10 @@ function calculatePortfolio(holdings, options = {}) {
     const totalCost = cost * quantity;
     const key = `${market}:${symbol}`;
     const quote = priceMap[key] ?? priceMap[symbol] ?? null;
-    const marketPrice = quote && Number.isFinite(quote.price) && quote.price > 0 ? quote.price : null;
+    const quoteMatchesCurrency = quote && (!quote.currency || quote.currency === currency || (quote.currency === 'USD' && currency === 'USDT'));
+    const liveFromSnapshot = quoteMatchesCurrency && Number.isFinite(quote.price) && quote.price > 0 ? quote.price : null;
+    const sheetPrice = Number.isFinite(Number(h.sheetPrice)) && Number(h.sheetPrice) > 0 ? Number(h.sheetPrice) : null;
+    const marketPrice = liveFromSnapshot ?? sheetPrice;
     const hasLivePrice = marketPrice !== null;
     const currentValue = hasLivePrice ? marketPrice * quantity : totalCost;
     const pnl = hasLivePrice ? currentValue - totalCost : 0;
@@ -95,8 +98,150 @@ function calculatePortfolio(holdings, options = {}) {
   };
 }
 
+function parseGoogleSheetUrl(inputUrl) {
+  const raw = String(inputUrl || '').trim();
+  const idMatch = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (!idMatch) throw new Error('ลิงก์ Google Sheets ไม่ถูกต้อง');
+  const gidMatch = raw.match(/[?#&]gid=(\d+)/);
+  const gid = gidMatch ? gidMatch[1] : '0';
+  return `https://docs.google.com/spreadsheets/d/${idMatch[1]}/gviz/tq?tqx=out:csv&gid=${gid}`;
+}
+
+function parseCsvRows(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"' && text[i + 1] === '"') {
+        field += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field.trim());
+      field = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(field.trim());
+      if (row.some((c) => c !== '')) rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += ch;
+    }
+  }
+  if (field !== '' || row.length) {
+    row.push(field.trim());
+    if (row.some((c) => c !== '')) rows.push(row);
+  }
+  return rows;
+}
+
+function parseNum(val) {
+  if (val === undefined || val === null || val === '') return NaN;
+  const n = Number(String(val).replace(/[,$\s฿]/g, ''));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function parsePortfolioCsv(csvText) {
+  const rows = parseCsvRows(csvText);
+  if (rows.length < 2) throw new Error('ไม่พบข้อมูลใน Google Sheets');
+  const headers = rows[0].map((h) => h.toLowerCase());
+  const idx = {
+    ticker: headers.findIndex((h) => h.includes('ticker') || h.includes('symbol')),
+    assetClass: headers.findIndex((h) => h.includes('asset class') || h.includes('market')),
+    qty: headers.findIndex((h) => h.includes('shares') || h.includes('units') || h.includes('qty') || h.includes('quantity')),
+    cost: headers.findIndex((h) => h.includes('avg invest') || h.includes('cost')),
+    price: headers.findIndex((h) => h.includes('current price') || h === 'price'),
+    valueThb: headers.findIndex((h) => h.includes('current value thb')),
+    costThb: headers.findIndex((h) => h.includes('total invest costthb') || h.includes('costthb')),
+  };
+  if (idx.ticker === -1 || idx.qty === -1 || idx.cost === -1) {
+    throw new Error('ไม่พบคอลัมน์ Ticker, Shares/Units หรือ avg invest ในชีต');
+  }
+
+  const parsed = [];
+  const inferredRates = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    const cols = rows[r];
+    const rawTicker = (cols[idx.ticker] || '').trim();
+    if (!rawTicker) continue;
+
+    const quantity = parseNum(cols[idx.qty]);
+    const cost = parseNum(cols[idx.cost]);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(cost) || cost <= 0) continue;
+
+    const assetClass = idx.assetClass >= 0 ? (cols[idx.assetClass] || '').trim() : '';
+    const sheetPrice = idx.price >= 0 ? parseNum(cols[idx.price]) : NaN;
+    const valueThb = idx.valueThb >= 0 ? parseNum(cols[idx.valueThb]) : NaN;
+    const costThb = idx.costThb >= 0 ? parseNum(cols[idx.costThb]) : NaN;
+
+    let market = 'Other';
+    let currency = 'THB';
+    let symbol = rawTicker.toUpperCase();
+
+    if (/us/i.test(assetClass) || /\s+US$/i.test(rawTicker)) {
+      market = 'US';
+      currency = 'USD';
+      symbol = symbol.replace(/\s+US$/i, '').trim();
+    } else if (/th/i.test(assetClass)) {
+      market = /fund/i.test(assetClass) ? 'Other' : 'Thai';
+      currency = 'THB';
+    } else if (/crypto/i.test(assetClass)) {
+      market = 'Crypto';
+      if (symbol.endsWith('THB') && symbol.length > 3) {
+        currency = 'THB';
+      } else if (Number.isFinite(valueThb) && Number.isFinite(sheetPrice) && sheetPrice > 0) {
+        const ratio = valueThb / (quantity * sheetPrice);
+        currency = ratio > 15 ? 'USD' : 'THB';
+      } else if (Number.isFinite(costThb) && costThb > 0) {
+        const ratio = costThb / (quantity * cost);
+        currency = ratio > 15 ? 'USD' : 'THB';
+      }
+    }
+
+    if (currency === 'USD' && Number.isFinite(costThb) && costThb > 0) {
+      const rate = costThb / (quantity * cost);
+      if (rate > 20 && rate < 60) inferredRates.push(rate);
+    }
+
+    parsed.push({
+      id: `gs-${r}-${symbol}`,
+      symbol,
+      name: assetClass ? `${rawTicker} · ${assetClass}` : rawTicker,
+      market,
+      currency,
+      cost,
+      quantity,
+      sheetPrice: Number.isFinite(sheetPrice) && sheetPrice > 0 ? sheetPrice : null,
+    });
+  }
+
+  const usdThbRate = inferredRates.length
+    ? Number((inferredRates.reduce((a, b) => a + b, 0) / inferredRates.length).toFixed(2))
+    : null;
+
+  return { holdings: parsed, inferredUsdThbRate: usdThbRate };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { calculatePortfolio, validateHoldingInput, toBaseCurrency };
+  module.exports = {
+    calculatePortfolio,
+    validateHoldingInput,
+    toBaseCurrency,
+    parseGoogleSheetUrl,
+    parseCsvRows,
+    parsePortfolioCsv,
+  };
 }
 
 if (typeof document !== 'undefined') {
@@ -368,6 +513,47 @@ if (typeof document !== 'undefined') {
     a.click();
     URL.revokeObjectURL(url);
   });
+
+  const sheetUrlInput = document.querySelector('#gsheet-url');
+  const sheetStatus = document.querySelector('#gsheet-status');
+  const syncSheetBtn = document.querySelector('#sync-gsheet');
+  const DEFAULT_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4/edit?gid=146811986#gid=146811986';
+
+  if (sheetUrlInput) {
+    sheetUrlInput.value = loadJson('ms-portfolio-gsheet-url', DEFAULT_SHEET_URL);
+  }
+
+  async function syncFromGoogleSheet() {
+    if (!sheetUrlInput || !syncSheetBtn) return;
+    const rawUrl = sheetUrlInput.value.trim();
+    syncSheetBtn.disabled = true;
+    if (sheetStatus) sheetStatus.textContent = 'กำลังดึงข้อมูลจาก Google Sheets...';
+    try {
+      const csvUrl = parseGoogleSheetUrl(rawUrl);
+      saveJson('ms-portfolio-gsheet-url', rawUrl);
+      const response = await fetch(csvUrl, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status} (ตรวจสอบว่าเปิดแชร์ลิงก์แบบ Anyone with the link)`);
+      const csvText = await response.text();
+      const { holdings: imported, inferredUsdThbRate } = parsePortfolioCsv(csvText);
+      if (!imported.length) throw new Error('ไม่พบรายการที่มีจำนวนและต้นทุน > 0');
+      holdings = imported;
+      saveJson(STORAGE_KEY, holdings);
+      if (inferredUsdThbRate) {
+        settings.usdThbRate = inferredUsdThbRate;
+        rateInput.value = inferredUsdThbRate;
+        saveJson(SETTINGS_KEY, settings);
+      }
+      resetForm();
+      renderPortfolio();
+      if (sheetStatus) sheetStatus.textContent = `ดึงสำเร็จ ${imported.length} สินทรัพย์ (อัปเดตล่าสุด ${new Date().toLocaleTimeString('th-TH')})`;
+    } catch (err) {
+      if (sheetStatus) sheetStatus.textContent = `ดึงข้อมูลไม่สำเร็จ: ${err.message}`;
+    } finally {
+      syncSheetBtn.disabled = false;
+    }
+  }
+
+  syncSheetBtn?.addEventListener('click', syncFromGoogleSheet);
 
   // Support pre-filling from Screener via ?symbol=...&market=...&currency=...
   const params = new URLSearchParams(window.location.search);

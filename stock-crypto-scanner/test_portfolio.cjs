@@ -1,5 +1,5 @@
 const assert = require('node:assert');
-const { calculatePortfolio, validateHoldingInput } = require('./portfolio.js');
+const { calculatePortfolio, validateHoldingInput, parseGoogleSheetUrl, parsePortfolioCsv } = require('./portfolio.js');
 
 // 1. Multi-asset allocation with mixed THB & USD currencies
 const result = calculatePortfolio(
@@ -48,4 +48,39 @@ assert.throws(() => validateHoldingInput({ symbol: '', cost: 10, quantity: 1 }))
 assert.throws(() => validateHoldingInput({ symbol: 'PTT', cost: 0, quantity: 10 }));
 assert.throws(() => validateHoldingInput({ symbol: 'PTT', cost: 10, quantity: -5 }));
 
-console.log('Portfolio: multi-currency allocation, live P&L fallback and validation passed');
+// 4. Google Sheets URL & CSV import
+const csvUrl = parseGoogleSheetUrl('https://docs.google.com/spreadsheets/d/1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4/edit?gid=146811986#gid=146811986');
+assert.strictEqual(
+  csvUrl,
+  'https://docs.google.com/spreadsheets/d/1XJjMCBopfrYrxYYQLa7AxXb6-vAFL3VnlcC7T9VxrD4/gviz/tq?tqx=out:csv&gid=146811986'
+);
+
+const sampleCsv = [
+  'Ticker,Asset Class,Shares/Units,avg invest,Current Price,Current Value THB,Total invest CostTHB',
+  'JEPQ US,ETF (US),29.0124110,56.457,54.0300,53280.70,55673.5806',
+  'SCB,Stock (TH),,,153.5000,0.00,',
+  'BTCTHB,Crypto,0.0546437,5313893.611,2053747.8580,112224.38,290370.8083',
+  'ondo,Crypto,1351.769884,21.918,10.6540,14401.76,29627.61',
+  'KT-JEPQ,THFund,492.1125,10.000,9.5786,4713.75,4921.13',
+  ',,,,,660317.97,1395789.263',
+].join('\n');
+
+const imported = parsePortfolioCsv(sampleCsv);
+assert.strictEqual(imported.holdings.length, 4);
+assert.strictEqual(imported.holdings[0].symbol, 'JEPQ');
+assert.strictEqual(imported.holdings[0].currency, 'USD');
+assert.strictEqual(imported.holdings[1].symbol, 'BTCTHB');
+assert.strictEqual(imported.holdings[1].currency, 'THB');
+assert.strictEqual(imported.holdings[2].symbol, 'ONDO');
+assert.strictEqual(imported.holdings[2].currency, 'THB');
+assert.strictEqual(imported.holdings[3].symbol, 'KT-JEPQ');
+assert.strictEqual(imported.holdings[3].currency, 'THB');
+assert.ok(imported.inferredUsdThbRate > 33 && imported.inferredUsdThbRate < 35);
+
+const sheetCalc = calculatePortfolio(imported.holdings, {
+  baseCurrency: 'THB',
+  usdThbRate: imported.inferredUsdThbRate,
+});
+assert.strictEqual(sheetCalc.liveCount, 4);
+
+console.log('Portfolio: multi-currency allocation, live P&L fallback, Google Sheets CSV and validation passed');

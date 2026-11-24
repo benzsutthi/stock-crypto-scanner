@@ -68,6 +68,47 @@
   gap: 8px;
 }
 
+.gsheet-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.gsheet-input-wrap {
+  flex: 1 1 320px;
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gsheet-input-wrap input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.gsheet-btn {
+  flex: 0 0 auto !important;
+  white-space: nowrap;
+}
+
+.gsheet-status {
+  width: 100%;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .portfolio-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
