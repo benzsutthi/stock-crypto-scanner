@@ -58,7 +58,6 @@
         </div>
         <div class="portfolio-toolbar-actions">
           <button type="button" id="toggle-privacy" class="secondary-action" aria-pressed="false">🙈 ซ่อนยอดเงิน</button>
-          <button type="button" id="load-sample" class="secondary-action">ลองตัวอย่างพอร์ต</button>
           <button type="button" id="export-portfolio" class="secondary-action">ส่งออก JSON</button>
           <button type="button" id="clear-portfolio" class="secondary-action">ล้างข้อมูลทั้งหมด</button>
         </div>
@@ -96,72 +95,29 @@
         <div id="allocation-legend" class="allocation-legend"></div>
       </section>
 
-      <div class="portfolio-grid">
-        <section class="portfolio-form-card">
-          <h2>เพิ่ม / แก้ไขสินทรัพย์</h2>
-          <form id="portfolio-form" class="portfolio-form" novalidate>
-            <label>สินทรัพย์ / Ticker
-              <input id="pf-symbol" type="text" list="asset-suggestions" placeholder="เช่น PTT, NVDA, BTC" maxlength="30" required>
-              <datalist id="asset-suggestions"></datalist>
-            </label>
-            <div class="two-col">
-              <label>ตลาด
-                <select id="pf-market">
-                  <option value="Thai">Thai (SET)</option>
-                  <option value="US">US Stock</option>
-                  <option value="Crypto">Crypto</option>
-                  <option value="Other">อื่นๆ</option>
-                </select>
-              </label>
-              <label>สกุลเงิน
-                <select id="pf-currency">
-                  <option value="THB">THB</option>
-                  <option value="USD">USD</option>
-                  <option value="USDT">USDT</option>
-                </select>
-              </label>
-            </div>
-            <div class="two-col">
-              <label>ต้นทุนต่อหน่วย
-                <input id="pf-cost" type="number" min="0" step="any" inputmode="decimal" placeholder="เช่น 32.50" required>
-              </label>
-              <label>จำนวนหุ้น / เหรียญ
-                <input id="pf-quantity" type="number" min="0" step="any" inputmode="decimal" placeholder="เช่น 1000" required>
-              </label>
-            </div>
-            <p id="pf-error" class="form-error" role="status"></p>
-            <div class="form-actions">
-              <button type="submit" id="pf-submit" class="primary-action">+ เพิ่มเข้าพอร์ต</button>
-              <button type="button" id="pf-cancel-edit" class="secondary-action" hidden>ยกเลิก</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="portfolio-table-card">
-          <h2>รายการในพอร์ต</h2>
-          <div class="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>สินทรัพย์</th>
-                  <th>ตลาด</th>
-                  <th class="align-right">จำนวน</th>
-                  <th class="align-right">ต้นทุน/หน่วย</th>
-                  <th class="align-right">ต้นทุนรวม</th>
-                  <th class="align-right">ราคาตลาด</th>
-                  <th class="align-right">มูลค่าปัจจุบัน</th>
-                  <th class="align-right">กำไร/ขาดทุน</th>
-                  <th class="align-right">สัดส่วน %</th>
-                  <th class="align-right">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody id="portfolio-rows">
-                <tr><td colspan="10" class="loading-row">กำลังโหลด...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
+      <section class="portfolio-table-card">
+        <h2>รายการในพอร์ต</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>สินทรัพย์</th>
+                <th>ตลาด</th>
+                <th class="align-right">จำนวน</th>
+                <th class="align-right">ต้นทุน/หน่วย</th>
+                <th class="align-right">ต้นทุนรวม</th>
+                <th class="align-right">ราคาตลาด</th>
+                <th class="align-right">มูลค่าปัจจุบัน</th>
+                <th class="align-right">กำไร/ขาดทุน</th>
+                <th class="align-right">สัดส่วน %</th>
+              </tr>
+            </thead>
+            <tbody id="portfolio-rows">
+              <tr><td colspan="9" class="loading-row">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <footer>MarketScope · บันทึกพอร์ตการลงทุน <span>ข้อมูลเก็บไว้ในเบราว์เซอร์ของคุณเท่านั้น</span></footer>
     </main>

@@ -319,7 +319,7 @@ if (typeof document !== 'undefined') {
 
     const tbody = document.querySelector('#portfolio-rows');
     if (!result.items.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="loading-row">ยังไม่มีรายการในพอร์ต · กรอกข้อมูลทางซ้ายเพื่อเริ่มต้น</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="loading-row">ยังไม่มีรายการในพอร์ต · วางลิงก์ Google Sheets ด้านบนแล้วกดซิงก์ได้เลย</td></tr>';
       return;
     }
 
@@ -339,7 +339,6 @@ if (typeof document !== 'undefined') {
         <td class="align-right">${fmtMoney(item.currentValue, item.currency)}</td>
         <td class="align-right">${pnlText}</td>
         <td class="align-right pct-cell"><b>${item.allocationPct.toFixed(2)}%</b><div class="pct-bar-track"><div class="pct-bar-fill" style="width:${Math.min(100, item.allocationPct).toFixed(2)}%;background:${item.color}"></div></div></td>
-        <td><div class="row-actions"><button type="button" class="row-btn" data-edit="${esc(item.id)}">แก้ไข</button><button type="button" class="row-btn danger" data-delete="${esc(item.id)}">ลบ</button></div></td>
       </tr>`;
     }).join('');
   }
@@ -382,95 +381,6 @@ if (typeof document !== 'undefined') {
     renderPortfolio();
   }
 
-  const form = document.querySelector('#portfolio-form');
-  const symbolInput = document.querySelector('#pf-symbol');
-  const marketInput = document.querySelector('#pf-market');
-  const currencyInput = document.querySelector('#pf-currency');
-  const costInput = document.querySelector('#pf-cost');
-  const qtyInput = document.querySelector('#pf-quantity');
-  const errorEl = document.querySelector('#pf-error');
-  const submitBtn = document.querySelector('#pf-submit');
-  const cancelEditBtn = document.querySelector('#pf-cancel-edit');
-
-  function resetForm() {
-    editingId = null;
-    form.reset();
-    submitBtn.textContent = '+ เพิ่มเข้าพอร์ต';
-    cancelEditBtn.hidden = true;
-    errorEl.textContent = '';
-  }
-
-  symbolInput.addEventListener('input', () => {
-    const sym = symbolInput.value.trim().toUpperCase();
-    const match = catalog.find((c) => c.symbol === sym);
-    if (match) {
-      marketInput.value = match.market;
-      currencyInput.value = match.currency;
-    }
-  });
-
-  marketInput.addEventListener('change', () => {
-    if (marketInput.value === 'Thai') currencyInput.value = 'THB';
-    else if (marketInput.value === 'US' || marketInput.value === 'Crypto') currencyInput.value = 'USD';
-  });
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    errorEl.textContent = '';
-    try {
-      const symbol = validateHoldingInput({
-        symbol: symbolInput.value,
-        cost: Number(costInput.value),
-        quantity: Number(qtyInput.value),
-      });
-      const entry = {
-        id: editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        symbol,
-        market: marketInput.value,
-        currency: currencyInput.value,
-        cost: Number(costInput.value),
-        quantity: Number(qtyInput.value),
-      };
-      if (editingId) {
-        holdings = holdings.map((h) => (h.id === editingId ? entry : h));
-      } else {
-        holdings = [...holdings, entry];
-      }
-      saveJson(STORAGE_KEY, holdings);
-      resetForm();
-      renderPortfolio();
-    } catch (err) {
-      errorEl.textContent = err.message;
-    }
-  });
-
-  cancelEditBtn.addEventListener('click', resetForm);
-
-  document.querySelector('#portfolio-rows').addEventListener('click', (e) => {
-    const editBtn = e.target.closest('[data-edit]');
-    if (editBtn) {
-      const item = holdings.find((h) => h.id === editBtn.dataset.edit);
-      if (!item) return;
-      editingId = item.id;
-      symbolInput.value = item.symbol;
-      marketInput.value = item.market;
-      currencyInput.value = item.currency;
-      costInput.value = item.cost;
-      qtyInput.value = item.quantity;
-      submitBtn.textContent = 'บันทึกการแก้ไข';
-      cancelEditBtn.hidden = false;
-      symbolInput.focus();
-      return;
-    }
-    const delBtn = e.target.closest('[data-delete]');
-    if (delBtn) {
-      holdings = holdings.filter((h) => h.id !== delBtn.dataset.delete);
-      saveJson(STORAGE_KEY, holdings);
-      if (editingId === delBtn.dataset.delete) resetForm();
-      renderPortfolio();
-    }
-  });
-
   const baseSelect = document.querySelector('#base-currency');
   const rateInput = document.querySelector('#usd-thb-rate');
   const weightSelect = document.querySelector('#weight-by');
@@ -506,17 +416,6 @@ if (typeof document !== 'undefined') {
     });
   }
 
-  document.querySelector('#load-sample').addEventListener('click', () => {
-    holdings = [
-      { id: 'sample-1', symbol: 'PTT', market: 'Thai', currency: 'THB', cost: 32.5, quantity: 2000 },
-      { id: 'sample-2', symbol: 'NVDA', market: 'US', currency: 'USD', cost: 118.0, quantity: 15 },
-      { id: 'sample-3', symbol: 'BTC', market: 'Crypto', currency: 'USD', cost: 68000, quantity: 0.04 },
-    ];
-    saveJson(STORAGE_KEY, holdings);
-    resetForm();
-    renderPortfolio();
-  });
-
   document.querySelector('#clear-portfolio').addEventListener('click', () => {
     holdings = [];
     try {
@@ -526,7 +425,6 @@ if (typeof document !== 'undefined') {
     } catch {}
     if (sheetUrlInput) sheetUrlInput.value = '';
     if (sheetStatus) sheetStatus.textContent = 'ล้างข้อมูลพอร์ตและลิงก์ส่วนตัวในเบราว์เซอร์แล้ว';
-    resetForm();
     renderPortfolio();
   });
 
@@ -583,7 +481,6 @@ if (typeof document !== 'undefined') {
           saveJson(SETTINGS_KEY, settings);
         }
         lastSheetSyncAt = Date.now();
-        resetForm();
         renderPortfolio();
         const nextMins = Math.round((sheetConfig.intervalMs || 300000) / 60000);
         if (sheetStatus) {
@@ -633,15 +530,6 @@ if (typeof document !== 'undefined') {
       }
     }
   });
-
-  // Support pre-filling from Screener via ?symbol=...&market=...&currency=...
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('symbol')) {
-    symbolInput.value = params.get('symbol').toUpperCase();
-    if (params.get('market')) marketInput.value = params.get('market');
-    if (params.get('currency')) currencyInput.value = params.get('currency');
-    costInput.focus();
-  }
 
   renderPortfolio();
   loadMarketPrices();
